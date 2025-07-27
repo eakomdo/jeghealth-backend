@@ -14,3 +14,4 @@ phonenumbers==8.13.25
 django-storages==1.14.2
 boto3==1.29.7
 django-extensions==3.2.3
+ruff==0.1.6

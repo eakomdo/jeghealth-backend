@@ -33,9 +33,9 @@ environ.Env.read_env(BASE_DIR / '.env')
 SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
+DEBUG = True
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.32.186', '*']
 
 
 # Application definition
@@ -172,11 +172,25 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only for development
+# CORS settings for React Native app
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Allow all origins in development
 CORS_ALLOW_CREDENTIALS = True
 
-# Additional CORS settings for mobile development
+# Specific origins for production (when DEBUG=False)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",           # React web development
+    "http://127.0.0.1:3000",
+    "http://localhost:8081",           # React Native Metro bundler
+    "http://127.0.0.1:8081",
+    "http://192.168.32.186:8081",      # Your machine's IP for React Native
+    "http://192.168.32.186:3000",      # Your machine's IP for web
+    "http://10.0.2.2:8000",            # Android emulator
+    "http://localhost:19006",          # Expo web
+    "exp://192.168.32.186:19000",      # Expo development server
+    "exp://127.0.0.1:19000",
+]
+
+# Allow common headers for React Native
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -189,6 +203,7 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+# Allow common methods
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
