@@ -32,41 +32,44 @@ class RegisterView(generics.CreateAPIView):
         tags=["Authentication"]
     )
     def post(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("Received registration request: %s", request.data)
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        with transaction.atomic():
-            user = serializer.save()
-            
-            # Assign default 'user' role
-            default_role, created = Role.objects.get_or_create(
-                name='user',
-                defaults={
-                    'description': 'Default user role',
-                    'permissions': {
-                        'can_view_own_data': True,
-                        'can_edit_own_profile': True,
-                        'can_add_health_metrics': True,
-                        'can_view_own_health_metrics': True,
+        try:
+            serializer.is_valid(raise_exception=True)
+            with transaction.atomic():
+                user = serializer.save()
+                # Assign default 'user' role
+                default_role, created = Role.objects.get_or_create(
+                    name='user',
+                    defaults={
+                        'description': 'Default user role',
+                        'permissions': {
+                            'can_view_own_data': True,
+                            'can_edit_own_profile': True,
+                            'can_add_health_metrics': True,
+                            'can_view_own_health_metrics': True,
+                        }
                     }
-                }
-            )
-            UserRole.objects.create(user=user, role=default_role)
-            
-            # Generate JWT tokens
-            refresh = RefreshToken.for_user(user)
-            
-            # Get user with roles for response
-            user_serializer = UserWithRolesSerializer(user)
-            
-            return Response({
-                'message': 'User registered successfully',
-                'user': user_serializer.data,
-                'tokens': {
-                    'access': str(refresh.access_token),
-                    'refresh': str(refresh),
-                }
-            }, status=status.HTTP_201_CREATED)
+                )
+                UserRole.objects.create(user=user, role=default_role)
+                # Generate JWT tokens
+                refresh = RefreshToken.for_user(user)
+                # Get user with roles for response
+                user_serializer = UserWithRolesSerializer(user)
+                logger.info("User registered successfully: %s", request.data.get('email'))
+                return Response({
+                    'message': 'User registered successfully',
+                    'user': user_serializer.data,
+                    'tokens': {
+                        'access': str(refresh.access_token),
+                        'refresh': str(refresh),
+                    }
+                }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            logger.error("Registration error: %s | Data: %s", str(e), request.data)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(APIView):
@@ -83,25 +86,34 @@ class LoginView(APIView):
         tags=["Authentication"]
     )
     def post(self, request):
-        serializer = UserLoginSerializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("Received login request: %s", request.data.get('email', 'No email provided'))
         
-        user = serializer.validated_data['user']
-        
-        # Generate JWT tokens
-        refresh = RefreshToken.for_user(user)
-        
-        # Get user with roles for response
-        user_serializer = UserWithRolesSerializer(user)
-        
-        return Response({
-            'message': 'Login successful',
-            'user': user_serializer.data,
-            'tokens': {
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-            }
-        }, status=status.HTTP_200_OK)
+        try:
+            serializer = UserLoginSerializer(data=request.data, context={'request': request})
+            serializer.is_valid(raise_exception=True)
+            
+            user = serializer.validated_data['user']
+            logger.info("User login successful: %s", user.email)
+            
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            
+            # Get user with roles for response
+            user_serializer = UserWithRolesSerializer(user)
+            
+            return Response({
+                'message': 'Login successful',
+                'user': user_serializer.data,
+                'tokens': {
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                }
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error("Login error: %s | Email: %s", str(e), request.data.get('email', 'No email provided'))
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LogoutView(APIView):

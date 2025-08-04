@@ -15,7 +15,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         min_length=8,
         validators=[validate_password]
     )
-    password_confirm = serializers.CharField(write_only=True)
+    password_confirm = serializers.CharField(write_only=True, required=True)
+    username = serializers.CharField(required=False, allow_blank=True)
     
     class Meta:
         model = User
@@ -27,13 +28,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             'email': {'required': True},
             'first_name': {'required': True},
             'last_name': {'required': True},
+            'password': {'write_only': True},
         }
     
-    def validate(self, attrs):
-        """Validate that passwords match."""
-        if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError("Passwords don't match.")
-        return attrs
+    def validate(self, data):
+        """Validate that passwords match and set default username."""
+        # Default username to email if not provided
+        if not data.get('username'):
+            data['username'] = data.get('email')
+        # Check password confirmation
+        if data['password'] != data['password_confirm']:
+            raise serializers.ValidationError("Passwords do not match.")
+        return data
     
     def validate_email(self, value):
         """Validate that email is unique."""
@@ -56,8 +62,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         
-        # Create user profile
-        UserProfile.objects.create(user=user)
+        # Create user profile if it doesn't exist
+        if not hasattr(user, 'profile'):
+            UserProfile.objects.create(user=user)
         
         return user
 

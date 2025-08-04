@@ -35,8 +35,11 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.32.186', '*']
+# Allow access from any IP (for development only)
+ALLOWED_HOSTS = ['*']
 
+# Allow all CORS origins (for development only)
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
 
@@ -257,6 +260,21 @@ LOGGING = {
             'propagate': True,
         },
         'jeghealth_backend': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'accounts': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django.contrib.auth': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'rest_framework': {
             'handlers': ['file', 'console'],
             'level': 'DEBUG',
             'propagate': True,
