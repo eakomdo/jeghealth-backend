@@ -1,0 +1,256 @@
+{
+  "title": "Complete Profile Update Test Request Bodies",
+  "description": "Test request bodies for updating all editable profile fields",
+  "base_url": "http://127.0.0.1:8000/api/v1/auth",
+  "credentials": {
+    "email": "officialjwise20@gmail.com",
+    "password": "Amoako@21"
+  },
+  "note": "BMI is read-only and calculated automatically from height and weight",
+  "test_cases": {
+    "1_login_to_get_token": {
+      "method": "POST",
+      "url": "http://127.0.0.1:8000/api/v1/auth/login/",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "officialjwise20@gmail.com",
+        "password": "Amoako@21"
+      },
+      "note": "Get access token for authenticated requests"
+    },
+    "2_update_basic_profile_info": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "gender": "F",
+        "height": 168.0,
+        "weight": 62.0,
+        "blood_type": "A+"
+      },
+      "note": "Update basic physical information"
+    },
+    "3_update_medical_information": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "medical_conditions": "Hypertension, managed with medication",
+        "current_medications": "Lisinopril 10mg daily, Vitamin D 1000 IU",
+        "allergies": "Penicillin, shellfish"
+      },
+      "note": "Update medical history and current medications"
+    },
+    "4_update_health_goals_and_activity": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "health_goals": "Lose 10 pounds, improve cardiovascular health, build muscle strength",
+        "activity_level": "ACTIVE"
+      },
+      "note": "Update health goals and activity level"
+    },
+    "5_update_notification_preferences": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "email_notifications": false,
+        "push_notifications": true,
+        "health_reminders": true
+      },
+      "note": "Update notification preferences"
+    },
+    "6_comprehensive_profile_update": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "gender": "M",
+        "height": 175.0,
+        "weight": 75.0,
+        "blood_type": "O+",
+        "medical_conditions": "No chronic conditions",
+        "current_medications": "Multivitamin daily",
+        "allergies": "None known",
+        "health_goals": "Maintain current weight, increase muscle mass, improve flexibility",
+        "activity_level": "VERY_ACTIVE",
+        "email_notifications": true,
+        "push_notifications": true,
+        "health_reminders": true
+      },
+      "note": "Update all editable profile fields at once"
+    },
+    "7_test_activity_level_options": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "activity_level": "SEDENTARY"
+      },
+      "note": "Test different activity level options: SEDENTARY, LIGHT, MODERATE, ACTIVE, VERY_ACTIVE"
+    },
+    "8_test_blood_type_options": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "blood_type": "AB-"
+      },
+      "note": "Test different blood type options: A+, A-, B+, B-, AB+, AB-, O+, O-, UNKNOWN"
+    },
+    "9_clear_optional_fields": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "medical_conditions": "",
+        "current_medications": "",
+        "allergies": "",
+        "health_goals": ""
+      },
+      "note": "Clear optional text fields by setting them to empty strings"
+    },
+    "10_invalid_gender_test": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "gender": "X"
+      },
+      "note": "Test invalid gender - should return validation error",
+      "expected_response": "400 Bad Request"
+    },
+    "11_invalid_activity_level_test": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "activity_level": "INVALID"
+      },
+      "note": "Test invalid activity level - should return validation error",
+      "expected_response": "400 Bad Request"
+    },
+    "12_try_to_update_readonly_fields": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN}"
+      },
+      "body": {
+        "bmi": 30.0,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      },
+      "note": "Test updating read-only fields - they should be ignored"
+    }
+  },
+  "curl_examples": {
+    "login": "curl -X POST http://127.0.0.1:8000/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{\"email\": \"officialjwise20@gmail.com\", \"password\": \"Amoako@21\"}'",
+    "comprehensive_update": "curl -X PATCH http://127.0.0.1:8000/api/v1/auth/profile/details/ -H \"Content-Type: application/json\" -H \"Authorization: Bearer YOUR_TOKEN\" -d '{\"gender\": \"M\", \"height\": 175.0, \"weight\": 75.0, \"blood_type\": \"O+\", \"medical_conditions\": \"No chronic conditions\", \"current_medications\": \"Multivitamin daily\", \"allergies\": \"None known\", \"health_goals\": \"Maintain health\", \"activity_level\": \"ACTIVE\", \"email_notifications\": true, \"push_notifications\": true, \"health_reminders\": true}'",
+    "update_notifications": "curl -X PATCH http://127.0.0.1:8000/api/v1/auth/profile/details/ -H \"Content-Type: application/json\" -H \"Authorization: Bearer YOUR_TOKEN\" -d '{\"email_notifications\": false, \"push_notifications\": true, \"health_reminders\": false}'"
+  },
+  "field_information": {
+    "editable_fields": {
+      "gender": {
+        "type": "CharField",
+        "choices": ["M", "F"],
+        "case_insensitive": true,
+        "description": "User's gender - Male or Female only"
+      },
+      "height": {
+        "type": "FloatField",
+        "unit": "centimeters",
+        "description": "User's height in centimeters"
+      },
+      "weight": {
+        "type": "FloatField", 
+        "unit": "kilograms",
+        "description": "User's weight in kilograms"
+      },
+      "blood_type": {
+        "type": "CharField",
+        "choices": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "UNKNOWN"],
+        "description": "User's blood type"
+      },
+      "medical_conditions": {
+        "type": "TextField",
+        "description": "List of chronic conditions, allergies, or important medical history"
+      },
+      "current_medications": {
+        "type": "TextField",
+        "description": "List of current medications and dosages"
+      },
+      "allergies": {
+        "type": "TextField",
+        "description": "List of known allergies"
+      },
+      "health_goals": {
+        "type": "TextField",
+        "description": "Personal health and fitness goals"
+      },
+      "activity_level": {
+        "type": "CharField",
+        "choices": ["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"],
+        "description": "User's activity level"
+      },
+      "email_notifications": {
+        "type": "BooleanField",
+        "description": "Whether to receive email notifications"
+      },
+      "push_notifications": {
+        "type": "BooleanField",
+        "description": "Whether to receive push notifications"
+      },
+      "health_reminders": {
+        "type": "BooleanField",
+        "description": "Whether to receive health reminders"
+      }
+    },
+    "readonly_fields": {
+      "bmi": {
+        "description": "Body Mass Index - calculated automatically from height and weight"
+      },
+      "created_at": {
+        "description": "Timestamp when profile was created"
+      },
+      "updated_at": {
+        "description": "Timestamp when profile was last updated"
+      }
+    }
+  }
+}

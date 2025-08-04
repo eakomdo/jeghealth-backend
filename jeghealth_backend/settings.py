@@ -224,6 +224,15 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'SECURITY': [{'Bearer': []}],
+    'ENUM_NAME_OVERRIDES': {
+        'iot_devices.IoTDevice.status': 'DeviceStatusEnum',
+        'iot_devices.DeviceData.status': 'DeviceDataStatusEnum',
+        'appointments.Appointment.status': 'AppointmentStatusEnum',
+        'medications.Medication.status': 'MedicationStatusEnum',
+        'medications.MedicationReminder.status': 'ReminderStatusEnum',
+        'health_metrics.HealthMetric.target_unit': 'TargetUnitEnum',
+        'accounts.UserProfile.gender': 'GenderEnum',
+    },
 }
 
 # Logging Configuration

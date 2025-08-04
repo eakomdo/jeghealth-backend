@@ -4,16 +4,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.contrib.auth import authenticate
 from django.db import transaction
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 
 from .models import User, UserProfile, Role, UserRole
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer, UserSerializer,
     UserUpdateSerializer, UserProfileSerializer, ChangePasswordSerializer,
-    UserWithRolesSerializer, RoleSerializer
+    UserWithRolesSerializer, RoleSerializer, ComprehensiveUserRegistrationSerializer,
+    BasicInformationSerializer, PersonalInformationSerializer
 )
 
 
@@ -122,6 +124,7 @@ class LogoutView(APIView):
     Blacklists the refresh token.
     """
     permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     
     @extend_schema(
         summary="User logout",
@@ -150,23 +153,26 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     """
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     
     def get_object(self):
         return self.request.user
     
     @extend_schema(
         summary="Get user profile",
-        description="Retrieve the authenticated user's profile information.",
-        tags=["User Profile"]
+        description="Retrieve the authenticated user's profile information. Requires authentication token.",
+        tags=["User Profile"],
+        auth=['Bearer']
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
     
     @extend_schema(
         summary="Update user profile",
-        description="Update the authenticated user's profile information.",
+        description="Update the authenticated user's profile information. Requires authentication token.",
         request=UserUpdateSerializer,
-        tags=["User Profile"]
+        tags=["User Profile"],
+        auth=['Bearer']
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
@@ -178,6 +184,7 @@ class UserProfileDetailView(generics.RetrieveUpdateAPIView):
     """
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     
     def get_object(self):
         profile, created = UserProfile.objects.get_or_create(user=self.request.user)
@@ -185,16 +192,18 @@ class UserProfileDetailView(generics.RetrieveUpdateAPIView):
     
     @extend_schema(
         summary="Get detailed user profile",
-        description="Retrieve the authenticated user's detailed profile (medical info, preferences).",
-        tags=["User Profile"]
+        description="Retrieve the authenticated user's detailed profile (medical info, preferences). Requires authentication token.",
+        tags=["User Profile"],
+        auth=['Bearer']
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
     
     @extend_schema(
         summary="Update detailed user profile",
-        description="Update the authenticated user's detailed profile information.",
-        tags=["User Profile"]
+        description="Update the authenticated user's detailed profile information. Requires authentication token.",
+        tags=["User Profile"],
+        auth=['Bearer']
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
@@ -205,12 +214,14 @@ class ChangePasswordView(APIView):
     Change user password endpoint.
     """
     permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     
     @extend_schema(
         summary="Change password",
-        description="Change the authenticated user's password.",
+        description="Change the authenticated user's password. Requires authentication token.",
         request=ChangePasswordSerializer,
-        tags=["User Profile"]
+        tags=["User Profile"],
+        auth=['Bearer']
     )
     def post(self, request):
         serializer = ChangePasswordSerializer(
@@ -231,11 +242,13 @@ class CurrentUserView(APIView):
     This matches the getCurrentUser function from your mobile app AuthContext.
     """
     permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     
     @extend_schema(
         summary="Get current user",
-        description="Get the currently authenticated user with full profile and role information.",
-        tags=["Authentication"]
+        description="Get the currently authenticated user with full profile and role information. Requires authentication token.",
+        tags=["Authentication"],
+        auth=['Bearer']
     )
     def get(self, request):
         user_serializer = UserWithRolesSerializer(request.user)
@@ -336,3 +349,165 @@ def assign_role_to_user(request):
         return Response({
             'error': 'Role not found'
         }, status=status.HTTP_404_NOT_FOUND)
+
+
+class ComprehensiveRegisterView(generics.CreateAPIView):
+    """
+    Comprehensive user registration endpoint that includes profile data.
+    Creates a new user account along with profile information in a single request.
+    """
+    queryset = User.objects.all()
+    serializer_class = ComprehensiveUserRegistrationSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    @extend_schema(
+        summary="Register a new user with profile data",
+        description="Create a new user account with email, password, basic information, and profile data including gender.",
+        tags=["Authentication"],
+        examples=[
+            OpenApiExample(
+                'Registration with profile',
+                summary='User registration including profile data',
+                description='Example of registering a user with profile information',
+                value={
+                    "email": "user@example.com",
+                    "password": "securepassword123",
+                    "password_confirm": "securepassword123",
+                    "first_name": "John",
+                    "last_name": "Doe",
+                    "phone_number": "+1234567890",
+                    "date_of_birth": "1990-01-01",
+                    "gender": "M",  # M (Male) or F (Female) - case insensitive
+                    "height": 175.5,
+                    "weight": 70.0,
+                    "blood_type": "O+",
+                    "medical_conditions": "None",
+                    "current_medications": "None",
+                    "allergies": "None"
+                },
+                request_only=True,
+            ),
+        ]
+    )
+    def post(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("Received comprehensive registration request: %s", request.data.get('email'))
+        
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            with transaction.atomic():
+                user = serializer.save()
+                
+                # Assign default 'user' role
+                default_role, created = Role.objects.get_or_create(
+                    name='user',
+                    defaults={
+                        'description': 'Default user role',
+                        'permissions': {
+                            'can_view_own_data': True,
+                            'can_edit_own_profile': True,
+                            'can_add_health_metrics': True,
+                            'can_view_own_health_metrics': True,
+                        }
+                    }
+                )
+                UserRole.objects.create(user=user, role=default_role)
+                
+                # Generate JWT tokens
+                refresh = RefreshToken.for_user(user)
+                
+                # Get user with roles for response
+                user_serializer = UserWithRolesSerializer(user)
+                
+                logger.info("User registered successfully with profile: %s", request.data.get('email'))
+                return Response({
+                    'message': 'User registered successfully with profile data',
+                    'user': user_serializer.data,
+                    'tokens': {
+                        'access': str(refresh.access_token),
+                        'refresh': str(refresh),
+                    }
+                }, status=status.HTTP_201_CREATED)
+                
+        except Exception as e:
+            logger.error("Comprehensive registration error: %s | Data: %s", str(e), request.data)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BasicInformationView(generics.RetrieveUpdateAPIView):
+    """
+    Get and update basic user information: full name, email, profile image
+    """
+    serializer_class = BasicInformationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    def get_object(self):
+        return self.request.user
+    
+    @extend_schema(
+        summary="Get basic user information",
+        description="Retrieve basic user information: full name, email, profile image. Requires authentication token.",
+        tags=["Basic Information"],
+        auth=['Bearer']
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @extend_schema(
+        summary="Update basic user information",
+        description="Update basic user information: first name, last name, email, profile image. Requires authentication token.",
+        request=BasicInformationSerializer,
+        tags=["Basic Information"],
+        auth=['Bearer']
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
+
+class PersonalInformationView(generics.RetrieveUpdateAPIView):
+    """
+    Get and update personal information: age, gender, blood type, height, weight
+    """
+    serializer_class = PersonalInformationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    def get_object(self):
+        return self.request.user
+    
+    @extend_schema(
+        summary="Get personal information",
+        description="Retrieve personal information: age, gender, blood type, height, weight, BMI. Requires authentication token.",
+        tags=["Personal Information"],
+        auth=['Bearer']
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @extend_schema(
+        summary="Update personal information",
+        description="Update personal information: date of birth, gender, blood type, height, weight. Age and BMI are calculated automatically. Requires authentication token.",
+        request=PersonalInformationSerializer,
+        tags=["Personal Information"],
+        auth=['Bearer'],
+        examples=[
+            OpenApiExample(
+                'Update personal info',
+                summary='Update personal information',
+                description='Example of updating personal information',
+                value={
+                    "date_of_birth": "1990-01-15",
+                    "gender": "M",  # M or F (case insensitive)
+                    "height": 175.0,  # in cm
+                    "weight": 70.0,   # in kg
+                    "blood_type": "O+"
+                },
+                request_only=True,
+            ),
+        ]
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)

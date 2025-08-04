@@ -1,0 +1,126 @@
+{
+  "title": "Gender Validation Test Request Bodies",
+  "description": "Test request bodies for gender validation functionality",
+  "credentials": {
+    "email": "officialjwise20@gmail.com",
+    "password": "Amoako@21"
+  },
+  "endpoints": {
+    "login": "POST http://127.0.0.1:8000/api/v1/auth/login/",
+    "profile_update": "PATCH http://127.0.0.1:8000/api/v1/auth/profile/details/"
+  },
+  "test_cases": {
+    "1_login_request": {
+      "method": "POST",
+      "url": "http://127.0.0.1:8000/api/v1/auth/login/",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "officialjwise20@gmail.com",
+        "password": "Amoako@21"
+      },
+      "expected_response": "200 OK with access token"
+    },
+    "2_valid_gender_male": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN_FROM_LOGIN}"
+      },
+      "body": {
+        "gender": "M",
+        "height": 175.0,
+        "weight": 70.0,
+        "blood_type": "O+"
+      },
+      "expected_response": "200 OK - Profile updated successfully"
+    },
+    "3_valid_gender_female": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN_FROM_LOGIN}"
+      },
+      "body": {
+        "gender": "F",
+        "height": 165.0,
+        "weight": 60.0,
+        "medical_conditions": "None",
+        "allergies": "None"
+      },
+      "expected_response": "200 OK - Profile updated successfully"
+    },
+    "4_case_insensitive_gender": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN_FROM_LOGIN}"
+      },
+      "body": {
+        "gender": "m"
+      },
+      "note": "Lowercase 'm' should be converted to uppercase 'M'",
+      "expected_response": "200 OK - Gender stored as 'M'"
+    },
+    "5_invalid_gender_other": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN_FROM_LOGIN}"
+      },
+      "body": {
+        "gender": "O"
+      },
+      "note": "'Other' is no longer a valid option",
+      "expected_response": "400 Bad Request - Invalid gender choice"
+    },
+    "6_invalid_gender_prefer_not_to_say": {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:8000/api/v1/auth/profile/details/",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {ACCESS_TOKEN_FROM_LOGIN}"
+      },
+      "body": {
+        "gender": "N"
+      },
+      "note": "'Prefer not to say' is no longer a valid option",
+      "expected_response": "400 Bad Request - Invalid gender choice"
+    },
+    "7_comprehensive_registration_with_gender": {
+      "method": "POST",
+      "url": "http://127.0.0.1:8000/api/v1/auth/register-with-profile/",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "newuser@example.com",
+        "password": "SecurePass123!",
+        "password_confirm": "SecurePass123!",
+        "first_name": "Test",
+        "last_name": "User",
+        "phone_number": "+1234567890",
+        "date_of_birth": "1990-01-01",
+        "gender": "F",
+        "height": 170.0,
+        "weight": 65.0,
+        "blood_type": "A+",
+        "medical_conditions": "None",
+        "current_medications": "None",
+        "allergies": "None"
+      },
+      "note": "Registration with profile data including gender validation",
+      "expected_response": "201 Created - User registered with profile"
+    }
+  },
+  "curl_examples": {
+    "login": "curl -X POST http://127.0.0.1:8000/api/v1/auth/login/ -H \"Content-Type: application/json\" -d '{\"email\": \"officialjwise20@gmail.com\", \"password\": \"Amoako@21\"}'",
+    "update_profile_male": "curl -X PATCH http://127.0.0.1:8000/api/v1/auth/profile/details/ -H \"Content-Type: application/json\" -H \"Authorization: Bearer YOUR_ACCESS_TOKEN\" -d '{\"gender\": \"M\", \"height\": 175.0, \"weight\": 70.0}'",
+    "update_profile_female": "curl -X PATCH http://127.0.0.1:8000/api/v1/auth/profile/details/ -H \"Content-Type: application/json\" -H \"Authorization: Bearer YOUR_ACCESS_TOKEN\" -d '{\"gender\": \"F\", \"height\": 165.0, \"weight\": 60.0}'"
+  }
+}

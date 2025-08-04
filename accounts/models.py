@@ -14,9 +14,16 @@ class User(AbstractUser):
     date_of_birth = models.DateField(_('date of birth'), blank=True, null=True)
     profile_image = models.ImageField(
         _('profile image'), 
-        upload_to='profile_images/', 
+        upload_to='user_profiles/',  # Store in static/user_profiles/
         blank=True, 
         null=True
+    )
+    profile_image_path = models.CharField(
+        _('profile image path'),
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=_('Stores the path of the uploaded profile image.')
     )
     
     # Medical information
@@ -54,6 +61,14 @@ class User(AbstractUser):
         """Return the user's full name."""
         return self.get_full_name()
 
+    def save(self, *args, **kwargs):
+        # Automatically update profile_image_path when profile_image is set
+        if self.profile_image:
+            self.profile_image_path = self.profile_image.name
+        else:
+            self.profile_image_path = None
+        super().save(*args, **kwargs)
+
 
 class UserProfile(models.Model):
     """
@@ -62,8 +77,6 @@ class UserProfile(models.Model):
     GENDER_CHOICES = [
         ('M', _('Male')),
         ('F', _('Female')),
-        ('O', _('Other')),
-        ('N', _('Prefer not to say')),
     ]
     
     BLOOD_TYPE_CHOICES = [
