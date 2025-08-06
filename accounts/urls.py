@@ -9,6 +9,7 @@ urlpatterns = [
     re_path(r'^login/?$', views.LoginView.as_view(), name='login'),
     re_path(r'^logout/?$', views.LogoutView.as_view(), name='logout'),
     re_path(r'^token/refresh/?$', TokenRefreshView.as_view(), name='token_refresh'),
+    re_path(r'^token/validate/?$', views.ValidateTokenView.as_view(), name='token_validate'),
     
     # User profile endpoints
     re_path(r'^profile/?$', views.UserProfileView.as_view(), name='user_profile'),
