@@ -67,6 +67,8 @@ INSTALLED_APPS = [
     'iot_devices',
     'appointments',
     'medications',
+    'providers',
+    'hospitals',
 ]
 
 MIDDLEWARE = [
