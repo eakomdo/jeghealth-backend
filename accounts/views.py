@@ -147,6 +147,55 @@ class LogoutView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ValidateTokenView(APIView):
+    """
+    Validate JWT token endpoint.
+    Returns token validity status without requiring full authentication.
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    @extend_schema(
+        summary="Validate JWT token",
+        description="Check if a JWT access token is valid and not expired.",
+        tags=["Authentication"],
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'token': {'type': 'string', 'description': 'JWT access token to validate'}
+                },
+                'required': ['token']
+            }
+        }
+    )
+    def post(self, request):
+        token = request.data.get('token')
+        
+        if not token:
+            return Response({
+                'valid': False,
+                'error': 'Token is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Try to decode and validate the token
+            from rest_framework_simplejwt.tokens import AccessToken
+            access_token = AccessToken(token)
+            
+            # If we get here, token is valid
+            return Response({
+                'valid': True,
+                'user_id': access_token['user_id'],
+                'expires_at': access_token['exp']
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'valid': False,
+                'error': 'Token is invalid or expired'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """
     Get and update user profile information.
