@@ -2,40 +2,13 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from providers.models import HealthcareProvider
 import uuid
 
 User = get_user_model()
 
 
-class HealthcareProvider(models.Model):
-    """Healthcare provider/doctor model"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=20, blank=True)
-    specialization = models.CharField(max_length=100)
-    license_number = models.CharField(max_length=50, unique=True)
-    hospital_clinic = models.CharField(max_length=200)
-    address = models.TextField(blank=True)
-    bio = models.TextField(blank=True)
-    years_of_experience = models.PositiveIntegerField(default=0)
-    consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'healthcare_providers'
-        ordering = ['last_name', 'first_name']
-
-    def __str__(self):
-        return f"Dr. {self.first_name} {self.last_name} - {self.specialization}"
-
-    @property
-    def full_name(self):
-        return f"{self.first_name} {self.last_name}"
-
+# Remove HealthcareProvider from here - it's now in providers app
 
 class Appointment(models.Model):
     """Appointment model for patient-doctor appointments"""
