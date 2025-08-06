@@ -20,6 +20,43 @@ class HealthcareProviderSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
+class HealthcareProviderCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating healthcare providers with validation"""
+    
+    class Meta:
+        model = HealthcareProvider
+        fields = [
+            'first_name', 'last_name', 'email', 'phone_number',
+            'specialization', 'license_number', 'hospital_clinic', 'address', 'bio',
+            'years_of_experience', 'consultation_fee'
+        ]
+        extra_kwargs = {
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+            'email': {'required': True},
+            'specialization': {'required': True},
+            'license_number': {'required': True},
+            'hospital_clinic': {'required': True},
+        }
+
+    def validate_email(self, value):
+        """Ensure email is unique"""
+        if HealthcareProvider.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Healthcare provider with this email already exists.")
+        return value
+
+    def validate_license_number(self, value):
+        """Ensure license number is unique"""
+        if HealthcareProvider.objects.filter(license_number=value).exists():
+            raise serializers.ValidationError("Healthcare provider with this license number already exists.")
+        return value
+
+    def create(self, validated_data):
+        """Create healthcare provider with is_active=True by default"""
+        validated_data['is_active'] = True
+        return super().create(validated_data)
+
+
 class HealthcareProviderListSerializer(serializers.ModelSerializer):
     """Simplified serializer for listing healthcare providers"""
     full_name = serializers.ReadOnlyField()
