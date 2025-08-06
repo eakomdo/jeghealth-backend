@@ -2,17 +2,21 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Healthcare Provider endpoints
-    path('providers/', views.HealthcareProviderListView.as_view(), name='healthcare-provider-list'),
-    path('providers/<uuid:pk>/', views.HealthcareProviderDetailView.as_view(), name='healthcare-provider-detail'),
-    
-    # Appointment endpoints
+    # Appointment endpoints (Patient-focused)
     path('', views.AppointmentListView.as_view(), name='appointment-list'),
     path('create/', views.AppointmentCreateView.as_view(), name='appointment-create'),
     path('<uuid:pk>/', views.AppointmentDetailView.as_view(), name='appointment-detail'),
     path('<uuid:pk>/update/', views.AppointmentUpdateView.as_view(), name='appointment-update'),
     path('<uuid:pk>/cancel/', views.AppointmentDeleteView.as_view(), name='appointment-cancel'),
     path('<uuid:appointment_id>/reschedule/', views.reschedule_appointment, name='appointment-reschedule'),
+    
+    # Doctor-specific appointment endpoints
+    path('doctor/<uuid:doctor_id>/', views.DoctorAppointmentListView.as_view(), name='doctor-appointment-list'),
+    path('doctor/<uuid:doctor_id>/today/', views.DoctorTodaysAppointmentsView.as_view(), name='doctor-todays-appointments'),
+    path('doctor/<uuid:doctor_id>/upcoming/', views.DoctorUpcomingAppointmentsView.as_view(), name='doctor-upcoming-appointments'),
+    path('doctor/<uuid:doctor_id>/stats/', views.DoctorAppointmentStatsView.as_view(), name='doctor-appointment-stats'),
+    path('doctor/<uuid:doctor_id>/appointment/<uuid:appointment_id>/', views.DoctorAppointmentDetailView.as_view(), name='doctor-appointment-detail'),
+    path('doctor/<uuid:doctor_id>/appointment/<uuid:appointment_id>/update-status/', views.doctor_update_appointment_status, name='doctor-update-appointment-status'),
     
     # Appointment Files endpoints
     path('<uuid:appointment_id>/files/', views.AppointmentFileListView.as_view(), name='appointment-file-list'),
