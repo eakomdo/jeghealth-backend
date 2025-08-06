@@ -1,0 +1,843 @@
+{
+	"info": {
+		"_postman_id": "jeghealth-api-collection",
+		"name": "JEGHealth API Collection - Complete",
+		"description": "Complete API collection for JEGHealth backend with all endpoints including frontend-compatible appointments",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:8000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "appointment_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "User Registration",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"SecurePass123\",\n    \"password_confirm\": \"SecurePass123\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"User\",\n    \"phone_number\": \"+1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "User Registration with Profile",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"completeuser\",\n    \"email\": \"complete@example.com\",\n    \"password\": \"SecurePass123\",\n    \"password_confirm\": \"SecurePass123\",\n    \"first_name\": \"Complete\",\n    \"last_name\": \"User\",\n    \"phone_number\": \"+1234567890\",\n    \"date_of_birth\": \"1990-01-15\",\n    \"gender\": \"M\",\n    \"height\": 175.0,\n    \"weight\": 70.0,\n    \"blood_type\": \"O+\",\n    \"activity_level\": \"MODERATE\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register-with-profile/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "register-with-profile"]
+						}
+					}
+				},
+				{
+					"name": "User Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.tokens.access);",
+									"    pm.collectionVariables.set('refresh_token', jsonData.tokens.refresh);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"officialjwise20@gmail.com\",\n    \"password\": \"Amoako@21\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "User Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/logout/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "logout"]
+						}
+					}
+				},
+				{
+					"name": "Token Refresh",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.access);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/token/refresh/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "token", "refresh"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "User Profile",
+			"item": [
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/current-user/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "current-user"]
+						}
+					}
+				},
+				{
+					"name": "Get User Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/profile/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Update User Profile",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"first_name\": \"Updated\",\n    \"last_name\": \"Name\",\n    \"phone_number\": \"+1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/profile/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Get Profile Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/profile/details/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "profile", "details"]
+						}
+					}
+				},
+				{
+					"name": "Update Profile Details",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"gender\": \"M\",\n    \"height\": 175.0,\n    \"weight\": 70.0,\n    \"blood_type\": \"O+\",\n    \"activity_level\": \"MODERATE\",\n    \"health_goals\": \"Improve fitness and maintain healthy weight\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/profile/details/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "profile", "details"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Basic Information",
+			"item": [
+				{
+					"name": "Get Basic Information",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/profile/basic/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "profile", "basic"]
+						}
+					}
+				},
+				{
+					"name": "Update Basic Information",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"email\": \"john.doe@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/profile/basic/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "profile", "basic"]
+						}
+					}
+				},
+				{
+					"name": "Update Profile Image",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "profile_image",
+									"type": "file",
+									"src": "/path/to/your/image.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/profile/basic/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "profile", "basic"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Personal Information",
+			"item": [
+				{
+					"name": "Get Personal Information",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/profile/personal/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "profile", "personal"]
+						}
+					}
+				},
+				{
+					"name": "Update Personal Information",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date_of_birth\": \"1990-01-15\",\n    \"gender\": \"M\",\n    \"height\": 175.0,\n    \"weight\": 70.0,\n    \"blood_type\": \"O+\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/profile/personal/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "profile", "personal"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Frontend Compatible Appointments",
+			"item": [
+				{
+					"name": "Get Appointment Choices",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/appointments/frontend/choices/",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "frontend", "choices"]
+						}
+					}
+				},
+				{
+					"name": "List Appointments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/appointments/frontend/?status=scheduled&type=consultation&specialty=cardiology&date_from=2025-08-01&date_to=2025-08-31&search=doctor",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "frontend"],
+							"query": [
+								{
+									"key": "status",
+									"value": "scheduled",
+									"description": "Filter by appointment status"
+								},
+								{
+									"key": "type",
+									"value": "consultation",
+									"description": "Filter by appointment type"
+								},
+								{
+									"key": "specialty",
+									"value": "cardiology",
+									"description": "Filter by specialty"
+								},
+								{
+									"key": "date_from",
+									"value": "2025-08-01",
+									"description": "Filter from date (YYYY-MM-DD)"
+								},
+								{
+									"key": "date_to",
+									"value": "2025-08-31",
+									"description": "Filter to date (YYYY-MM-DD)"
+								},
+								{
+									"key": "search",
+									"value": "doctor",
+									"description": "Search in doctor name, clinic, reason"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Appointment (Frontend Compatible)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('appointment_id', jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"patientId\": \"user-id-from-auth\",\n    \"doctorName\": \"Dr. John Smith\",\n    \"specialty\": \"Cardiology\",\n    \"clinicName\": \"City Medical Center\",\n    \"clinicAddress\": \"123 Main St, City, State\",\n    \"phoneNumber\": \"+1234567890\",\n    \"appointmentDate\": \"2025-08-15T14:30:00.000Z\",\n    \"appointmentType\": \"consultation\",\n    \"reason\": \"Regular checkup\",\n    \"notes\": \"Patient has diabetes\",\n    \"duration\": 30\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/appointments/frontend/",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "frontend"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Appointments (Backend)",
+			"item": [
+				{
+					"name": "List All Appointments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/appointments/?page=1&page_size=10&ordering=-appointment_date",
+							"host": ["{{base_url}}"],
+							"path": ["appointments"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "page_size",
+									"value": "10"
+								},
+								{
+									"key": "ordering",
+									"value": "-appointment_date"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Appointment (Backend)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"healthcare_provider\": \"provider-uuid-here\",\n    \"appointment_date\": \"2025-08-15T14:30:00Z\",\n    \"duration_minutes\": 30,\n    \"appointment_type\": \"consultation\",\n    \"reason\": \"Regular checkup\",\n    \"notes\": \"Patient has diabetes\",\n    \"priority\": \"normal\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/appointments/create/",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "create"]
+						}
+					}
+				},
+				{
+					"name": "Get Appointment Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/appointments/{{appointment_id}}/",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "{{appointment_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Appointment",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"confirmed\",\n    \"notes\": \"Updated notes\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/appointments/{{appointment_id}}/update/",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "{{appointment_id}}", "update"]
+						}
+					}
+				},
+				{
+					"name": "Cancel Appointment",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/appointments/{{appointment_id}}/cancel/",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "{{appointment_id}}", "cancel"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Healthcare Providers",
+			"item": [
+				{
+					"name": "List Healthcare Providers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/appointments/providers/?specialization=cardiology&search=doctor&ordering=last_name",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "providers"],
+							"query": [
+								{
+									"key": "specialization",
+									"value": "cardiology"
+								},
+								{
+									"key": "search",
+									"value": "doctor"
+								},
+								{
+									"key": "ordering",
+									"value": "last_name"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Healthcare Provider Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/appointments/providers/provider-uuid-here/",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "providers", "provider-uuid-here"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Health Metrics",
+			"item": [
+				{
+					"name": "Get Health Metrics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/health-metrics/?metric_type=blood_pressure&date_from=2025-08-01&date_to=2025-08-31",
+							"host": ["{{base_url}}"],
+							"path": ["health-metrics"],
+							"query": [
+								{
+									"key": "metric_type",
+									"value": "blood_pressure"
+								},
+								{
+									"key": "date_from",
+									"value": "2025-08-01"
+								},
+								{
+									"key": "date_to",
+									"value": "2025-08-31"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Health Metric",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"metric_type\": \"blood_pressure\",\n    \"value\": 120.0,\n    \"secondary_value\": 80.0,\n    \"unit\": \"mmHg\",\n    \"notes\": \"Morning reading\",\n    \"recorded_at\": \"2025-08-06T08:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/health-metrics/",
+							"host": ["{{base_url}}"],
+							"path": ["health-metrics"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "IoT Devices",
+			"item": [
+				{
+					"name": "Get IoT Devices",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/iot-devices/?device_type=blood_pressure_monitor&status=active",
+							"host": ["{{base_url}}"],
+							"path": ["iot-devices"],
+							"query": [
+								{
+									"key": "device_type",
+									"value": "blood_pressure_monitor"
+								},
+								{
+									"key": "status",
+									"value": "active"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Register IoT Device",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"device_name\": \"Blood Pressure Monitor\",\n    \"device_type\": \"blood_pressure_monitor\",\n    \"device_id\": \"BP001\",\n    \"manufacturer\": \"HealthTech\",\n    \"model\": \"BP-2024\",\n    \"mac_address\": \"00:1B:44:11:3A:B7\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/iot-devices/",
+							"host": ["{{base_url}}"],
+							"path": ["iot-devices"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Password Management",
+			"item": [
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"old_password\": \"CurrentPassword123\",\n    \"new_password\": \"NewPassword123\",\n    \"confirm_password\": \"NewPassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/change-password/",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "change-password"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

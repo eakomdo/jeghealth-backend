@@ -26,4 +26,8 @@ urlpatterns = [
     path('stats/', views.appointment_stats, name='appointment-stats'),
     path('upcoming/', views.upcoming_appointments, name='upcoming-appointments'),
     path('history/', views.appointment_history, name='appointment-history'),
+
+    # Frontend-compatible endpoints
+    path('frontend/', views.FrontendAppointmentListCreateView.as_view(), name='frontend-appointments'),
+    path('frontend/choices/', views.frontend_appointment_choices, name='frontend-appointment-choices'),
 ]

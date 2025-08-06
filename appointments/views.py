@@ -431,3 +431,138 @@ def appointment_history(request):
             {'error': 'Failed to fetch appointment history'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+# Frontend Compatible Appointment Views
+class FrontendAppointmentListCreateView(generics.ListCreateAPIView):
+    """
+    Frontend-compatible appointment view that accepts the exact structure from your React Native app
+    """
+    permission_classes = [IsAuthenticated]
+    pagination_class = AppointmentPagination
+    
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return AppointmentListSerializer
+        return AppointmentCreateSerializer
+    
+    def get_queryset(self):
+        queryset = Appointment.objects.filter(patient=self.request.user)
+        
+        # Frontend-compatible query parameters
+        status = self.request.query_params.get('status')
+        appointment_type = self.request.query_params.get('type')
+        specialty = self.request.query_params.get('specialty')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        search = self.request.query_params.get('search')
+        
+        if status:
+            queryset = queryset.filter(status=status)
+        if appointment_type:
+            queryset = queryset.filter(appointment_type=appointment_type)
+        if specialty:
+            queryset = queryset.filter(healthcare_provider__specialization__icontains=specialty)
+        if date_from:
+            queryset = queryset.filter(appointment_date__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(appointment_date__date__lte=date_to)
+        if search:
+            queryset = queryset.filter(
+                Q(healthcare_provider__first_name__icontains=search) |
+                Q(healthcare_provider__last_name__icontains=search) |
+                Q(healthcare_provider__hospital_clinic__icontains=search) |
+                Q(reason__icontains=search)
+            )
+        
+        return queryset.order_by('-appointment_date')
+
+    def create(self, request, *args, **kwargs):
+        """Handle frontend appointment creation with the exact structure you provided"""
+        try:
+            # Transform frontend data to backend structure
+            frontend_data = request.data.copy()
+            
+            # Map frontend fields to backend fields
+            backend_data = {
+                'patient': request.user.id,
+                'appointment_date': frontend_data.get('appointmentDate'),
+                'appointment_type': frontend_data.get('appointmentType', 'consultation'),
+                'reason': frontend_data.get('reason', ''),
+                'notes': frontend_data.get('notes', ''),
+                'duration_minutes': frontend_data.get('duration', 30),
+                'status': 'scheduled'
+            }
+            
+            # Handle healthcare provider creation/retrieval
+            doctor_name = frontend_data.get('doctorName', '')
+            specialty = frontend_data.get('specialty', 'General Practice')
+            clinic_name = frontend_data.get('clinicName', '')
+            clinic_address = frontend_data.get('clinicAddress', '')
+            phone_number = frontend_data.get('phoneNumber', '')
+            
+            if doctor_name:
+                # Split doctor name into first and last name
+                name_parts = doctor_name.replace('Dr. ', '').split(' ')
+                first_name = name_parts[0] if name_parts else ''
+                last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
+                
+                healthcare_provider, created = HealthcareProvider.objects.get_or_create(
+                    first_name=first_name,
+                    last_name=last_name,
+                    defaults={
+                        'specialization': specialty,
+                        'phone_number': phone_number,
+                        'hospital_clinic': clinic_name,
+                        'address': clinic_address,
+                        'email': f"{first_name.lower()}.{last_name.lower()}@clinic.com" if first_name and last_name else '',
+                        'is_active': True
+                    }
+                )
+                backend_data['healthcare_provider'] = healthcare_provider.id
+            
+            serializer = AppointmentCreateSerializer(data=backend_data, context={'request': request})
+            if serializer.is_valid():
+                appointment = serializer.save()
+                return Response(AppointmentSerializer(appointment).data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            logger.error(f"Error creating appointment: {str(e)}")
+            return Response({'error': 'Failed to create appointment'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def frontend_appointment_choices(request):
+    """Get available choices for appointment fields in frontend-compatible format"""
+    appointment_types = [
+        {'value': 'consultation', 'label': 'General Consultation'},
+        {'value': 'follow_up', 'label': 'Follow-up'},
+        {'value': 'emergency', 'label': 'Emergency'},
+        {'value': 'checkup', 'label': 'Routine Checkup'},
+        {'value': 'surgery', 'label': 'Surgery'},
+        {'value': 'therapy', 'label': 'Therapy'},
+        {'value': 'vaccination', 'label': 'Vaccination'},
+        {'value': 'diagnostic', 'label': 'Diagnostic Test'}
+    ]
+    
+    specialties = [
+        'General Practice', 'Cardiology', 'Dermatology', 'Endocrinology',
+        'Gastroenterology', 'Neurology', 'Oncology', 'Orthopedics',
+        'Pediatrics', 'Psychiatry', 'Radiology', 'Surgery'
+    ]
+    
+    status_choices = [
+        {'value': 'scheduled', 'label': 'Scheduled'},
+        {'value': 'confirmed', 'label': 'Confirmed'},
+        {'value': 'completed', 'label': 'Completed'},
+        {'value': 'cancelled', 'label': 'Cancelled'}
+    ]
+    
+    return Response({
+        'appointmentTypes': appointment_types,
+        'specialties': specialties,
+        'statusValues': status_choices
+    })
