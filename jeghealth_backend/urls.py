@@ -35,6 +35,8 @@ urlpatterns = [
     
     # API endpoints
     path('api/v1/auth/', include('accounts.urls')),
+    path('api/v1/providers/', include('providers.urls')),
+    path('api/v1/hospitals/', include('hospitals.urls')),
     path('api/v1/health-metrics/', include('health_metrics.urls')),
     path('api/v1/iot-devices/', include('iot_devices.urls')),
     path('api/v1/appointments/', include('appointments.urls')),
