@@ -1,0 +1,26 @@
+{
+  "name": "jeghealth-backend",
+  "version": "2.1.0",
+  "description": "Comprehensive Healthcare Management System API",
+  "main": "manage.py",
+  "scripts": {
+    "start": "python manage.py runserver",
+    "test": "./test_endpoints.sh",
+    "migrate": "python manage.py migrate",
+    "makemigrations": "python manage.py makemigrations"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eakomdo/jeghealth-backend"
+  },
+  "keywords": [
+    "healthcare",
+    "api",
+    "django",
+    "appointment-booking",
+    "medical-records",
+    "jwt-authentication"
+  ],
+  "author": "JEGHealth Team",
+  "license": "MIT"
+}
