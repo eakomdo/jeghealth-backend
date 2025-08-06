@@ -6,12 +6,13 @@ from rest_framework.pagination import PageNumberPagination
 from django.utils import timezone
 from django.db.models import Q, Count, Avg, Sum
 from django.db.models.functions import TruncMonth
+from django.shortcuts import get_object_or_404
 from datetime import datetime, timedelta
 import logging
 
-from .models import HealthcareProvider, Appointment, AppointmentFile, AppointmentRating
+from providers.models import HealthcareProvider
+from .models import Appointment, AppointmentFile, AppointmentRating
 from .serializers import (
-    HealthcareProviderSerializer, HealthcareProviderListSerializer,
     AppointmentSerializer, AppointmentListSerializer, AppointmentCreateSerializer,
     AppointmentUpdateSerializer, AppointmentFileSerializer, AppointmentRatingSerializer,
     AppointmentStatsSerializer
@@ -24,27 +25,6 @@ class AppointmentPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = 'page_size'
     max_page_size = 100
-
-
-# Healthcare Provider Views
-class HealthcareProviderListView(generics.ListAPIView):
-    """List all active healthcare providers"""
-    queryset = HealthcareProvider.objects.filter(is_active=True)
-    serializer_class = HealthcareProviderListSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['specialization', 'hospital_clinic']
-    search_fields = ['first_name', 'last_name', 'specialization', 'hospital_clinic']
-    ordering_fields = ['last_name', 'specialization', 'years_of_experience', 'consultation_fee']
-    ordering = ['last_name']
-    pagination_class = AppointmentPagination
-
-
-class HealthcareProviderDetailView(generics.RetrieveAPIView):
-    """Get healthcare provider details"""
-    queryset = HealthcareProvider.objects.filter(is_active=True)
-    serializer_class = HealthcareProviderSerializer
-    permission_classes = [IsAuthenticated]
 
 
 # Appointment Views
@@ -566,3 +546,221 @@ def frontend_appointment_choices(request):
         'specialties': specialties,
         'statusValues': status_choices
     })
+
+
+# Doctor-specific appointment views
+class DoctorAppointmentListView(generics.ListAPIView):
+    """
+    List all appointments for a specific doctor
+    URL: /api/v1/appointments/doctor/{doctor_id}/
+    """
+    serializer_class = AppointmentListSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'appointment_type', 'priority', 'payment_status']
+    search_fields = ['patient__first_name', 'patient__last_name', 'chief_complaint']
+    ordering_fields = ['appointment_date', 'created_at', 'status']
+    ordering = ['appointment_date']
+    pagination_class = AppointmentPagination
+
+    def get_queryset(self):
+        """Filter appointments by the specified doctor"""
+        doctor_id = self.kwargs.get('doctor_id')
+        queryset = Appointment.objects.filter(healthcare_provider_id=doctor_id)
+        
+        # Additional query parameters
+        status = self.request.query_params.get('status')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        
+        if status:
+            queryset = queryset.filter(status=status)
+        if date_from:
+            queryset = queryset.filter(appointment_date__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(appointment_date__date__lte=date_to)
+            
+        return queryset
+
+
+class DoctorTodaysAppointmentsView(generics.ListAPIView):
+    """
+    Get today's appointments for a specific doctor
+    URL: /api/v1/appointments/doctor/{doctor_id}/today/
+    """
+    serializer_class = AppointmentListSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = AppointmentPagination
+    
+    def get_queryset(self):
+        doctor_id = self.kwargs.get('doctor_id')
+        today = timezone.now().date()
+        return Appointment.objects.filter(
+            healthcare_provider_id=doctor_id,
+            appointment_date__date=today
+        ).order_by('appointment_date')
+
+
+class DoctorUpcomingAppointmentsView(generics.ListAPIView):
+    """
+    Get upcoming appointments for a specific doctor (next 7 days)
+    URL: /api/v1/appointments/doctor/{doctor_id}/upcoming/
+    """
+    serializer_class = AppointmentListSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = AppointmentPagination
+    
+    def get_queryset(self):
+        doctor_id = self.kwargs.get('doctor_id')
+        now = timezone.now()
+        week_from_now = now + timedelta(days=7)
+        return Appointment.objects.filter(
+            healthcare_provider_id=doctor_id,
+            appointment_date__range=[now, week_from_now],
+            status__in=['scheduled', 'confirmed']
+        ).order_by('appointment_date')
+
+
+class DoctorAppointmentStatsView(generics.GenericAPIView):
+    """
+    Get appointment statistics for a specific doctor
+    URL: /api/v1/appointments/doctor/{doctor_id}/stats/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, doctor_id):
+        try:
+            # Get doctor info
+            doctor = HealthcareProvider.objects.get(id=doctor_id)
+            
+            # Basic counts
+            total_appointments = Appointment.objects.filter(healthcare_provider_id=doctor_id).count()
+            completed_appointments = Appointment.objects.filter(
+                healthcare_provider_id=doctor_id, 
+                status='completed'
+            ).count()
+            cancelled_appointments = Appointment.objects.filter(
+                healthcare_provider_id=doctor_id, 
+                status='cancelled'
+            ).count()
+            
+            # Today's appointments
+            today = timezone.now().date()
+            todays_appointments = Appointment.objects.filter(
+                healthcare_provider_id=doctor_id,
+                appointment_date__date=today
+            ).count()
+            
+            # This month's appointments
+            current_month = timezone.now().replace(day=1)
+            this_month_appointments = Appointment.objects.filter(
+                healthcare_provider_id=doctor_id,
+                appointment_date__gte=current_month
+            ).count()
+            
+            # Average rating
+            from django.db.models import Avg
+            avg_rating = Appointment.objects.filter(
+                healthcare_provider_id=doctor_id,
+                rating__isnull=False
+            ).aggregate(avg_rating=Avg('rating__rating'))['avg_rating']
+            
+            # Revenue (completed appointments)
+            total_revenue = Appointment.objects.filter(
+                healthcare_provider_id=doctor_id,
+                status='completed',
+                payment_status='paid'
+            ).aggregate(total=Sum('consultation_fee'))['total'] or 0
+            
+            return Response({
+                'doctor': {
+                    'id': str(doctor.id),
+                    'name': doctor.full_name,
+                    'specialization': doctor.specialization,
+                },
+                'statistics': {
+                    'total_appointments': total_appointments,
+                    'completed_appointments': completed_appointments,
+                    'cancelled_appointments': cancelled_appointments,
+                    'todays_appointments': todays_appointments,
+                    'this_month_appointments': this_month_appointments,
+                    'average_rating': round(avg_rating or 0, 1),
+                    'total_revenue': float(total_revenue),
+                    'completion_rate': round(
+                        (completed_appointments / total_appointments * 100) if total_appointments > 0 else 0, 1
+                    )
+                }
+            })
+            
+        except HealthcareProvider.DoesNotExist:
+            return Response(
+                {'error': 'Healthcare provider not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error getting doctor stats: {str(e)}")
+            return Response(
+                {'error': 'Failed to fetch statistics'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def doctor_update_appointment_status(request, doctor_id, appointment_id):
+    """
+    Allow doctor to update appointment status and add notes
+    URL: /api/v1/appointments/doctor/{doctor_id}/appointment/{appointment_id}/update-status/
+    """
+    try:
+        appointment = get_object_or_404(
+            Appointment, 
+            id=appointment_id, 
+            healthcare_provider_id=doctor_id
+        )
+        
+        # Update status if provided
+        new_status = request.data.get('status')
+        if new_status and new_status in dict(Appointment.STATUS_CHOICES):
+            appointment.status = new_status
+        
+        # Update medical details if provided
+        if request.data.get('diagnosis'):
+            appointment.diagnosis = request.data.get('diagnosis')
+        if request.data.get('treatment_plan'):
+            appointment.treatment_plan = request.data.get('treatment_plan')
+        if request.data.get('prescribed_medications'):
+            appointment.prescribed_medications = request.data.get('prescribed_medications')
+        if request.data.get('follow_up_instructions'):
+            appointment.follow_up_instructions = request.data.get('follow_up_instructions')
+        if 'next_appointment_recommended' in request.data:
+            appointment.next_appointment_recommended = request.data.get('next_appointment_recommended')
+            
+        appointment.save()
+        
+        return Response(AppointmentSerializer(appointment).data)
+        
+    except Exception as e:
+        logger.error(f"Error updating appointment status: {str(e)}")
+        return Response(
+            {'error': 'Failed to update appointment'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+class DoctorAppointmentDetailView(generics.RetrieveAPIView):
+    """
+    Get detailed appointment information for a doctor
+    URL: /api/v1/appointments/doctor/{doctor_id}/appointment/{appointment_id}/
+    """
+    serializer_class = AppointmentSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self):
+        doctor_id = self.kwargs.get('doctor_id')
+        appointment_id = self.kwargs.get('appointment_id')
+        return get_object_or_404(
+            Appointment, 
+            id=appointment_id, 
+            healthcare_provider_id=doctor_id
+        )
