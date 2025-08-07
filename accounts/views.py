@@ -63,7 +63,12 @@ class RegisterView(generics.CreateAPIView):
                 logger.info("User registered successfully: %s", request.data.get('email'))
                 return Response({
                     'message': 'User registered successfully',
-                    'user': user_serializer.data,
+                    'authUser': user_serializer.data,
+                    'userProfile': user_serializer.data.get('profile'),
+                    'role': {
+                        'name': user_serializer.data.get('roles', ['user'])[0] if user_serializer.data.get('roles') else 'user',
+                        'permissions': user_serializer.data.get('permissions', {})
+                    },
                     'tokens': {
                         'access': str(refresh.access_token),
                         'refresh': str(refresh),
@@ -107,7 +112,12 @@ class LoginView(APIView):
             
             return Response({
                 'message': 'Login successful',
-                'user': user_serializer.data,
+                'authUser': user_serializer.data,
+                'userProfile': user_serializer.data.get('profile'),
+                'role': {
+                    'name': user_serializer.data.get('roles', ['user'])[0] if user_serializer.data.get('roles') else 'user',
+                    'permissions': user_serializer.data.get('permissions', {})
+                },
                 'tokens': {
                     'access': str(refresh.access_token),
                     'refresh': str(refresh),
@@ -473,7 +483,12 @@ class ComprehensiveRegisterView(generics.CreateAPIView):
                 logger.info("User registered successfully with profile: %s", request.data.get('email'))
                 return Response({
                     'message': 'User registered successfully with profile data',
-                    'user': user_serializer.data,
+                    'authUser': user_serializer.data,
+                    'userProfile': user_serializer.data.get('profile'),
+                    'role': {
+                        'name': user_serializer.data.get('roles', ['user'])[0] if user_serializer.data.get('roles') else 'user',
+                        'permissions': user_serializer.data.get('permissions', {})
+                    },
                     'tokens': {
                         'access': str(refresh.access_token),
                         'refresh': str(refresh),
