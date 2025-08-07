@@ -608,24 +608,9 @@ class ProviderRegistrationSerializer(serializers.ModelSerializer):
         # Remove password confirmation
         validated_data.pop('password_confirm')
         
-        # Create user account
+        # Create user account - create_user handles everything
         password = validated_data.pop('password')
-        user = User.objects.create_user(**validated_data)
-        user.set_password(password)
-        user.save()
-        
-        # Create healthcare provider record
-        provider_fields.update({
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'email': user.email,
-            'phone_number': str(user.phone_number) if user.phone_number else '',
-        })
-        
-        provider = HealthcareProvider.objects.create(**provider_fields)
-        
-        return user
-        user.save()
+        user = User.objects.create_user(password=password, **validated_data)
         
         # Create healthcare provider record
         provider_fields.update({
