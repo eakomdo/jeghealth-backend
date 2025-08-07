@@ -24,4 +24,9 @@ urlpatterns = [
     # Basic and personal information endpoints
     re_path(r'^profile/basic/?$', views.BasicInformationView.as_view(), name='profile_basic'),
     re_path(r'^profile/personal/?$', views.PersonalInformationView.as_view(), name='profile_personal'),
+    
+    # Healthcare Provider endpoints
+    re_path(r'^provider/register/?$', views.ProviderRegisterView.as_view(), name='provider_register'),
+    re_path(r'^provider/profile/?$', views.ProviderProfileView.as_view(), name='provider_profile'),
+    re_path(r'^provider/dashboard/?$', views.provider_dashboard, name='provider_dashboard'),
 ]

@@ -11,3 +11,6 @@ urlpatterns = [
     path('search/', views.provider_search_autocomplete, name='provider-search'),
     path('hospital/<uuid:hospital_id>/', views.providers_by_hospital, name='providers-by-hospital'),
 ]
+
+
+
