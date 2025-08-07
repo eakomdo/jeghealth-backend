@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from .models import User, UserProfile, Role, UserRole
+from providers.models import HealthcareProvider
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -511,3 +512,167 @@ class PersonalInformationSerializer(serializers.ModelSerializer):
             data['bmi'] = None
         
         return data
+
+
+class ProviderRegistrationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for healthcare provider registration.
+    Creates both User account and HealthcareProvider record.
+    Includes all professional form fields.
+    """
+    # Security fields
+    password = serializers.CharField(write_only=True, min_length=8)
+    password_confirm = serializers.CharField(write_only=True)
+    
+    # Professional Information fields
+    professional_title = serializers.ChoiceField(
+        choices=HealthcareProvider.PROFESSIONAL_TITLE_CHOICES,
+        help_text="Professional title (Dr., RN, etc.)"
+    )
+    organization_facility = serializers.CharField(
+        max_length=200,
+        help_text="Organization/Facility (General Hospital, Private Practice, etc.)"
+    )
+    professional_role = serializers.ChoiceField(
+        choices=HealthcareProvider.PROFESSIONAL_ROLE_CHOICES,
+        help_text="Primary professional role"
+    )
+    specialization = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    license_number = serializers.CharField(
+        max_length=50,
+        help_text="Professional license number for verification"
+    )
+    
+    # Optional fields
+    additional_information = serializers.CharField(
+        required=False, 
+        allow_blank=True,
+        help_text="Tell us about your specific IoT monitoring needs or questions"
+    )
+    
+    # Legacy fields (backward compatibility)
+    years_of_experience = serializers.IntegerField(min_value=0, default=0, required=False)
+    consultation_fee = serializers.DecimalField(max_digits=10, decimal_places=2, default=0.00, required=False)
+    bio = serializers.CharField(required=False, allow_blank=True)
+    hospital_clinic = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = User
+        fields = [
+            # User account fields
+            'email', 'username', 'first_name', 'last_name', 'phone_number',
+            'password', 'password_confirm',
+            # Professional fields  
+            'professional_title', 'organization_facility', 'professional_role',
+            'specialization', 'license_number', 'additional_information',
+            # Legacy fields
+            'years_of_experience', 'consultation_fee', 'bio', 'hospital_clinic', 'address'
+        ]
+
+    def validate(self, attrs):
+        # Password validation
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError("Passwords don't match")
+        
+        if len(attrs['password']) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long")
+        
+        # Check if license number is unique
+        if HealthcareProvider.objects.filter(license_number=attrs['license_number']).exists():
+            raise serializers.ValidationError("A provider with this license number already exists")
+        
+        # Email format validation (additional check)
+        email = attrs.get('email', '')
+        if not email or '@' not in email:
+            raise serializers.ValidationError("Please enter a valid email address")
+            
+        return attrs
+
+    def create(self, validated_data):
+        # Extract provider-specific fields
+        provider_fields = {
+            'professional_title': validated_data.pop('professional_title'),
+            'organization_facility': validated_data.pop('organization_facility'),
+            'professional_role': validated_data.pop('professional_role'),
+            'license_number': validated_data.pop('license_number'),
+            'specialization': validated_data.pop('specialization', ''),
+            'additional_information': validated_data.pop('additional_information', ''),
+            'years_of_experience': validated_data.pop('years_of_experience', 0),
+            'consultation_fee': validated_data.pop('consultation_fee', 0.00),
+            'bio': validated_data.pop('bio', ''),
+            'hospital_clinic': validated_data.pop('hospital_clinic', ''),
+            'address': validated_data.pop('address', ''),
+        }
+        
+        # Remove password confirmation
+        validated_data.pop('password_confirm')
+        
+        # Create user account
+        password = validated_data.pop('password')
+        user = User.objects.create_user(**validated_data)
+        user.set_password(password)
+        user.save()
+        
+        # Create healthcare provider record
+        provider_fields.update({
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'phone_number': str(user.phone_number) if user.phone_number else '',
+        })
+        
+        provider = HealthcareProvider.objects.create(**provider_fields)
+        
+        return user
+        user.save()
+        
+        # Create healthcare provider record
+        provider_fields.update({
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'phone_number': str(user.phone_number) if user.phone_number else '',
+        })
+        
+        provider = HealthcareProvider.objects.create(**provider_fields)
+        
+        return user
+
+
+class ProviderProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for healthcare provider profile data
+    """
+    # Include related user data
+    user_id = serializers.SerializerMethodField()
+    user_email = serializers.CharField(source='email', read_only=True)
+    user_first_name = serializers.CharField(source='first_name', read_only=True) 
+    user_last_name = serializers.CharField(source='last_name', read_only=True)
+    user_phone_number = serializers.CharField(source='phone_number', read_only=True)
+    
+    class Meta:
+        model = HealthcareProvider
+        fields = [
+            # Basic information
+            'id', 'professional_title', 'first_name', 'last_name', 'email', 'phone_number',
+            # Professional information
+            'organization_facility', 'professional_role', 'specialization', 
+            'license_number', 'license_verified', 'additional_information',
+            # Legacy fields
+            'hospital_clinic', 'address', 'bio', 'years_of_experience', 'consultation_fee',
+            # Status
+            'is_active', 'created_at', 'updated_at', 
+            # User relationship
+            'user_id', 'user_email', 'user_first_name', 'user_last_name', 'user_phone_number'
+        ]
+        read_only_fields = ['id', 'license_verified', 'created_at', 'updated_at']
+        
+    def get_user_id(self, obj):
+        # Get the corresponding User record
+        try:
+            from .models import User
+            user = User.objects.get(email=obj.email)
+            return user.id
+        except User.DoesNotExist:
+            return None
