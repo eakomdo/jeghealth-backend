@@ -41,6 +41,7 @@ urlpatterns = [
     path('api/v1/iot-devices/', include('iot_devices.urls')),
     path('api/v1/appointments/', include('appointments.urls')),
     path('api/v1/medications/', include('medications.urls')),
+    path('api/v1/dr-jeg/', include('dr_jeg.urls')),
 ]
 
 # Serve media files in development

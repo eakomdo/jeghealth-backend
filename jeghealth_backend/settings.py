@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'medications',
     'providers',
     'hospitals',
+    'dr_jeg',
 ]
 
 MIDDLEWARE = [
@@ -362,6 +363,11 @@ X_FRAME_OPTIONS = 'DENY'
 
 # Phone Number Field Configuration
 PHONENUMBER_DEFAULT_REGION = 'US'
+
+# Google Gemini API Configuration
+GOOGLE_GEMINI_API_KEY = env('GOOGLE_GEMINI_API_KEY', default='')
+GEMINI_MODEL = env('GEMINI_MODEL', default='gemini-pro')
+DR_JEG_RATE_LIMIT_PER_HOUR = env.int('DR_JEG_RATE_LIMIT_PER_HOUR', default=60)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
