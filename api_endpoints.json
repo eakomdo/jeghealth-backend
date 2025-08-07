@@ -1,0 +1,464 @@
+{
+  "info": {
+    "name": "JegHealth Backend API",
+    "description": "Complete API endpoints for JegHealth healthcare management system",
+    "version": "1.0.0",
+    "baseUrl": "http://localhost:8001/api/v1"
+  },
+  "endpoints": {
+    "authentication": {
+      "userRegister": {
+        "method": "POST",
+        "url": "/auth/register/",
+        "auth": false,
+        "description": "Register a new user account"
+      },
+      "userLogin": {
+        "method": "POST", 
+        "url": "/auth/login/",
+        "auth": false,
+        "description": "Login with email and password"
+      },
+      "providerRegister": {
+        "method": "POST",
+        "url": "/auth/provider/register/",
+        "auth": false,
+        "description": "Register a new healthcare provider"
+      },
+      "tokenRefresh": {
+        "method": "POST",
+        "url": "/auth/token/refresh/",
+        "auth": false,
+        "description": "Refresh access token"
+      },
+      "tokenValidate": {
+        "method": "POST",
+        "url": "/auth/token/validate/",
+        "auth": true,
+        "description": "Validate current token"
+      },
+      "logout": {
+        "method": "POST",
+        "url": "/auth/logout/",
+        "auth": true,
+        "description": "Logout current user"
+      }
+    },
+    "userProfile": {
+      "getCurrentUser": {
+        "method": "GET",
+        "url": "/auth/current-user/",
+        "auth": true,
+        "description": "Get current user information"
+      },
+      "getUserProfile": {
+        "method": "GET",
+        "url": "/auth/profile/",
+        "auth": true,
+        "description": "Get user profile details"
+      },
+      "updateUserProfile": {
+        "method": "PATCH",
+        "url": "/auth/profile/",
+        "auth": true,
+        "description": "Update user profile"
+      },
+      "getBasicInfo": {
+        "method": "GET",
+        "url": "/auth/profile/basic/",
+        "auth": true,
+        "description": "Get basic user information"
+      },
+      "updateBasicInfo": {
+        "method": "PATCH",
+        "url": "/auth/profile/basic/",
+        "auth": true,
+        "description": "Update basic user information"
+      },
+      "getPersonalInfo": {
+        "method": "GET",
+        "url": "/auth/profile/personal/",
+        "auth": true,
+        "description": "Get personal information"
+      },
+      "updatePersonalInfo": {
+        "method": "PATCH",
+        "url": "/auth/profile/personal/",
+        "auth": true,
+        "description": "Update personal information"
+      },
+      "changePassword": {
+        "method": "POST",
+        "url": "/auth/change-password/",
+        "auth": true,
+        "description": "Change user password"
+      }
+    },
+    "providers": {
+      "listProviders": {
+        "method": "GET",
+        "url": "/providers/",
+        "auth": true,
+        "description": "List all healthcare providers",
+        "queryParams": ["search", "specialization", "ordering", "page"]
+      },
+      "getProvider": {
+        "method": "GET",
+        "url": "/providers/{id}/",
+        "auth": true,
+        "description": "Get provider details by ID"
+      },
+      "createProvider": {
+        "method": "POST",
+        "url": "/providers/",
+        "auth": true,
+        "description": "Create new provider (admin)"
+      },
+      "updateProvider": {
+        "method": "PATCH",
+        "url": "/providers/{id}/",
+        "auth": true,
+        "description": "Update provider details"
+      },
+      "deleteProvider": {
+        "method": "DELETE",
+        "url": "/providers/{id}/",
+        "auth": true,
+        "description": "Deactivate provider"
+      },
+      "searchProviders": {
+        "method": "GET",
+        "url": "/providers/search/",
+        "auth": true,
+        "description": "Search providers (autocomplete)",
+        "queryParams": ["q"]
+      },
+      "providerDropdown": {
+        "method": "GET",
+        "url": "/providers/dropdown/",
+        "auth": true,
+        "description": "Get providers for dropdown selection",
+        "queryParams": ["specialization", "hospital_id"]
+      },
+      "providersByHospital": {
+        "method": "GET",
+        "url": "/providers/hospital/{hospital_id}/",
+        "auth": true,
+        "description": "Get providers by hospital"
+      },
+      "getProviderProfile": {
+        "method": "GET",
+        "url": "/auth/provider/profile/",
+        "auth": true,
+        "role": "provider",
+        "description": "Get provider's own profile"
+      },
+      "updateProviderProfile": {
+        "method": "PATCH",
+        "url": "/auth/provider/profile/",
+        "auth": true,
+        "role": "provider",
+        "description": "Update provider's own profile"
+      },
+      "providerDashboard": {
+        "method": "GET",
+        "url": "/auth/provider/dashboard/",
+        "auth": true,
+        "role": "provider",
+        "description": "Get provider dashboard data"
+      }
+    },
+    "appointments": {
+      "listAppointments": {
+        "method": "GET",
+        "url": "/appointments/",
+        "auth": true,
+        "description": "List user's appointments"
+      },
+      "createAppointment": {
+        "method": "POST",
+        "url": "/appointments/",
+        "auth": true,
+        "description": "Create new appointment"
+      },
+      "getAppointment": {
+        "method": "GET",
+        "url": "/appointments/{id}/",
+        "auth": true,
+        "description": "Get appointment details"
+      },
+      "updateAppointment": {
+        "method": "PATCH",
+        "url": "/appointments/{id}/",
+        "auth": true,
+        "description": "Update appointment"
+      },
+      "cancelAppointment": {
+        "method": "DELETE",
+        "url": "/appointments/{id}/",
+        "auth": true,
+        "description": "Cancel appointment"
+      },
+      "providerAppointments": {
+        "method": "GET",
+        "url": "/appointments/provider-appointments/",
+        "auth": true,
+        "role": "provider",
+        "description": "Get provider's appointments"
+      }
+    },
+    "healthMetrics": {
+      "listMetrics": {
+        "method": "GET",
+        "url": "/health-metrics/",
+        "auth": true,
+        "description": "List user's health metrics"
+      },
+      "createMetric": {
+        "method": "POST",
+        "url": "/health-metrics/",
+        "auth": true,
+        "description": "Add new health metric"
+      },
+      "getMetric": {
+        "method": "GET",
+        "url": "/health-metrics/{id}/",
+        "auth": true,
+        "description": "Get health metric details"
+      },
+      "updateMetric": {
+        "method": "PATCH",
+        "url": "/health-metrics/{id}/",
+        "auth": true,
+        "description": "Update health metric"
+      },
+      "deleteMetric": {
+        "method": "DELETE",
+        "url": "/health-metrics/{id}/",
+        "auth": true,
+        "description": "Delete health metric"
+      }
+    },
+    "hospitals": {
+      "listHospitals": {
+        "method": "GET",
+        "url": "/hospitals/",
+        "auth": true,
+        "description": "List all hospitals"
+      },
+      "getHospital": {
+        "method": "GET",
+        "url": "/hospitals/{id}/",
+        "auth": true,
+        "description": "Get hospital details"
+      },
+      "searchHospitals": {
+        "method": "GET",
+        "url": "/hospitals/search/",
+        "auth": true,
+        "description": "Search hospitals",
+        "queryParams": ["q"]
+      },
+      "hospitalDropdown": {
+        "method": "GET",
+        "url": "/hospitals/dropdown/",
+        "auth": true,
+        "description": "Get hospitals for dropdown"
+      }
+    },
+    "iotDevices": {
+      "listDevices": {
+        "method": "GET",
+        "url": "/iot-devices/",
+        "auth": true,
+        "description": "List user's IoT devices"
+      },
+      "createDevice": {
+        "method": "POST",
+        "url": "/iot-devices/",
+        "auth": true,
+        "description": "Add new IoT device"
+      },
+      "getDevice": {
+        "method": "GET",
+        "url": "/iot-devices/{id}/",
+        "auth": true,
+        "description": "Get IoT device details"
+      },
+      "updateDevice": {
+        "method": "PATCH",
+        "url": "/iot-devices/{id}/",
+        "auth": true,
+        "description": "Update IoT device"
+      },
+      "deleteDevice": {
+        "method": "DELETE",
+        "url": "/iot-devices/{id}/",
+        "auth": true,
+        "description": "Delete IoT device"
+      }
+    },
+    "medications": {
+      "listMedications": {
+        "method": "GET",
+        "url": "/medications/",
+        "auth": true,
+        "description": "List user's medications"
+      },
+      "createMedication": {
+        "method": "POST",
+        "url": "/medications/",
+        "auth": true,
+        "description": "Add new medication"
+      },
+      "getMedication": {
+        "method": "GET",
+        "url": "/medications/{id}/",
+        "auth": true,
+        "description": "Get medication details"
+      },
+      "updateMedication": {
+        "method": "PATCH",
+        "url": "/medications/{id}/",
+        "auth": true,
+        "description": "Update medication"
+      },
+      "deleteMedication": {
+        "method": "DELETE",
+        "url": "/medications/{id}/",
+        "auth": true,
+        "description": "Delete medication"
+      }
+    }
+  },
+  "sampleRequests": {
+    "userLogin": {
+      "method": "POST",
+      "url": "/auth/login/",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "user@example.com",
+        "password": "Password123!"
+      }
+    },
+    "providerRegistration": {
+      "method": "POST",
+      "url": "/auth/provider/register/",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "doctor@example.com",
+        "username": "dr_username",
+        "password": "Password123!",
+        "password_confirm": "Password123!",
+        "first_name": "Dr. John",
+        "last_name": "Smith",
+        "phone_number": "+14155552671",
+        "specialization": "Cardiology",
+        "license_number": "MD123456789",
+        "years_of_experience": 10,
+        "consultation_fee": "150.00",
+        "bio": "Experienced cardiologist",
+        "hospital_clinic": "City Heart Center",
+        "address": "123 Medical St, Health City"
+      }
+    },
+    "createAppointment": {
+      "method": "POST",
+      "url": "/appointments/",
+      "headers": {
+        "Authorization": "Bearer {access_token}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "healthcare_provider": "provider_uuid",
+        "appointment_date": "2025-08-10T10:00:00Z",
+        "chief_complaint": "Regular checkup",
+        "duration_minutes": 30,
+        "notes": "Follow-up visit"
+      }
+    },
+    "addHealthMetric": {
+      "method": "POST",
+      "url": "/health-metrics/",
+      "headers": {
+        "Authorization": "Bearer {access_token}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "metric_type": "blood_pressure",
+        "value": "120/80",
+        "unit": "mmHg",
+        "recorded_date": "2025-08-07T10:00:00Z",
+        "notes": "Morning reading"
+      }
+    }
+  },
+  "responseExamples": {
+    "loginSuccess": {
+      "message": "Login successful",
+      "authUser": {
+        "id": 1,
+        "email": "user@example.com",
+        "username": "username",
+        "first_name": "John",
+        "last_name": "Doe",
+        "roles": ["user"],
+        "permissions": {}
+      },
+      "userProfile": null,
+      "role": {
+        "name": "user",
+        "permissions": {}
+      },
+      "tokens": {
+        "access": "eyJhbGciOiJIUzI1NiIs...",
+        "refresh": "eyJhbGciOiJIUzI1NiIs..."
+      }
+    },
+    "providerDashboard": {
+      "provider": {
+        "id": "provider_uuid",
+        "full_name": "Dr. John Smith",
+        "specialization": "Cardiology",
+        "years_of_experience": 10,
+        "consultation_fee": "175.00"
+      },
+      "statistics": {
+        "total_appointments": 15,
+        "today_appointments": 3,
+        "week_appointments": 8,
+        "month_appointments": 15,
+        "upcoming_appointments": 5,
+        "completed_appointments": 10
+      },
+      "recent_appointments": []
+    },
+    "providersList": {
+      "count": 4,
+      "next": null,
+      "previous": null,
+      "results": [
+        {
+          "id": "provider_uuid",
+          "full_name": "Dr. John Smith",
+          "specialization": "Cardiology",
+          "hospital_names": "",
+          "years_of_experience": 10,
+          "consultation_fee": "175.00",
+          "is_active": true
+        }
+      ]
+    }
+  },
+  "errorCodes": {
+    "400": "Bad Request - Invalid data or validation errors",
+    "401": "Unauthorized - Authentication required or invalid token",
+    "403": "Forbidden - Insufficient permissions",
+    "404": "Not Found - Resource not found",
+    "500": "Internal Server Error - Server error"
+  }
+}
