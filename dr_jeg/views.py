@@ -1,25 +1,33 @@
 import logging
 from django.utils import timezone
 from django.db import transaction
-from rest_framework import generics, status, permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import status, viewsets, permissions
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
+from rest_framework.pagination import PageNumberPagination
+from django.shortcuts import get_object_or_404
+from django.db.models import Q
 
 from .models import Conversation, Message, ConversationAnalytics, APIUsageLog
 from .serializers import (
     ConversationListSerializer, ConversationDetailSerializer,
     ConversationCreateSerializer, ConversationResponseSerializer,
     MessageSerializer, ConversationAnalyticsSerializer,
-    ConversationBulkDeleteSerializer
+    ConversationBulkDeleteSerializer, HealthAnalysisRequestSerializer
 )
 from .services import gemini_service
+from health_metrics.models import HealthMetric
 
 logger = logging.getLogger(__name__)
 
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class ConversationCreateView(APIView):
     """
@@ -416,3 +424,330 @@ def dr_jeg_status(request):
             'service_status': 'error',
             'error': 'Unable to retrieve status'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class DrJegViewSet(viewsets.ViewSet):
+    """Dr. JEG AI Assistant API endpoints"""
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    
+    @action(detail=False, methods=['post'])
+    def chat(self, request):
+        """Start or continue a chat with Dr. JEG"""
+        try:
+            message = request.data.get('message', '').strip()
+            conversation_id = request.data.get('conversation_id')
+            
+            if not message:
+                return Response(
+                    {'error': 'Message is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get or create conversation
+            if conversation_id:
+                try:
+                    conversation = Conversation.objects.get(
+                        id=conversation_id,
+                        user=request.user,
+                        is_active=True
+                    )
+                except Conversation.DoesNotExist:
+                    return Response(
+                        {'error': 'Conversation not found'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                # Create new conversation
+                conversation = Conversation.objects.create(
+                    user=request.user,
+                    title=f"Chat: {message[:30]}..."
+                )
+            
+            # Save user message
+            user_message = Message.objects.create(
+                conversation=conversation,
+                role='user',
+                content=message
+            )
+            
+            # Get user's health context
+            health_context = self._get_user_health_context(request.user)
+            
+            # Get AI response
+            ai_response = gemini_service.get_health_advice(message, health_context)
+            
+            if ai_response['success']:
+                # Save AI response
+                ai_message = Message.objects.create(
+                    conversation=conversation,
+                    role='assistant',
+                    content=ai_response['advice'],
+                    metadata={
+                        'tokens_used': ai_response.get('tokens_used', 0),
+                        'health_topics': ai_response.get('health_topics', [])
+                    }
+                )
+                
+                # Update analytics
+                self._update_conversation_analytics(conversation, ai_response)
+                
+                # Log API usage
+                self._log_api_usage(request.user, 'chat', ai_response.get('tokens_used', 0))
+                
+                return Response({
+                    'success': True,
+                    'conversation_id': str(conversation.id),
+                    'message': {
+                        'id': str(ai_message.id),
+                        'content': ai_message.content,
+                        'timestamp': ai_message.timestamp
+                    },
+                    'health_topics': ai_response.get('health_topics', [])
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'error': ai_response['message'],
+                    'fallback_advice': ai_response['advice']
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                
+        except Exception as e:
+            logger.error(f"Chat error: {str(e)}")
+            return Response(
+                {'error': 'Service temporarily unavailable'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'])
+    def analyze_health(self, request):
+        """Analyze user's health data"""
+        try:
+            serializer = HealthAnalysisRequestSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            health_metrics = serializer.validated_data['health_metrics']
+            analysis_type = serializer.validated_data['analysis_type']
+            
+            # Get AI analysis
+            analysis_result = gemini_service.analyze_health_data(health_metrics)
+            
+            if analysis_result['success']:
+                # Create conversation for this analysis
+                conversation = Conversation.objects.create(
+                    user=request.user,
+                    title=f"Health Analysis - {analysis_type.title()}"
+                )
+                
+                # Save analysis request as user message
+                Message.objects.create(
+                    conversation=conversation,
+                    role='user',
+                    content=f"Health Analysis Request: {analysis_type}",
+                    metadata={'health_metrics': health_metrics}
+                )
+                
+                # Save analysis result as AI message
+                Message.objects.create(
+                    conversation=conversation,
+                    role='assistant',
+                    content=analysis_result['analysis'],
+                    metadata={
+                        'analysis_type': analysis_type,
+                        'insights': analysis_result.get('insights', []),
+                        'recommendations': analysis_result.get('recommendations', [])
+                    }
+                )
+                
+                # Log API usage
+                self._log_api_usage(request.user, 'health_analysis', 100)  # Estimate tokens
+                
+                return Response({
+                    'success': True,
+                    'conversation_id': str(conversation.id),
+                    'analysis': analysis_result['analysis'],
+                    'insights': analysis_result.get('insights', []),
+                    'recommendations': analysis_result.get('recommendations', [])
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'error': analysis_result['message']
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                
+        except Exception as e:
+            logger.error(f"Health analysis error: {str(e)}")
+            return Response(
+                {'error': 'Analysis service temporarily unavailable'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def conversations(self, request):
+        """Get user's conversation history"""
+        try:
+            conversations = Conversation.objects.filter(
+                user=request.user,
+                is_active=True
+            ).order_by('-updated_at')
+            
+            # Apply pagination
+            paginator = self.pagination_class()
+            page = paginator.paginate_queryset(conversations, request)
+            
+            if page is not None:
+                serializer = ConversationSerializer(page, many=True)
+                return paginator.get_paginated_response(serializer.data)
+            
+            serializer = ConversationSerializer(conversations, many=True)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            logger.error(f"Conversation history error: {str(e)}")
+            return Response(
+                {'error': 'Unable to retrieve conversations'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['get'])
+    def conversation_detail(self, request, pk=None):
+        """Get detailed conversation with all messages"""
+        try:
+            conversation = get_object_or_404(
+                Conversation,
+                id=pk,
+                user=request.user,
+                is_active=True
+            )
+            
+            serializer = ConversationSerializer(conversation)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            logger.error(f"Conversation detail error: {str(e)}")
+            return Response(
+                {'error': 'Conversation not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=True, methods=['delete'])
+    def delete_conversation(self, request, pk=None):
+        """Delete (deactivate) a conversation"""
+        try:
+            conversation = get_object_or_404(
+                Conversation,
+                id=pk,
+                user=request.user
+            )
+            
+            conversation.is_active = False
+            conversation.save()
+            
+            return Response({'success': True, 'message': 'Conversation deleted'})
+            
+        except Exception as e:
+            logger.error(f"Delete conversation error: {str(e)}")
+            return Response(
+                {'error': 'Unable to delete conversation'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def health_tips(self, request):
+        """Get daily health tips"""
+        tips = [
+            "Stay hydrated by drinking at least 8 glasses of water daily.",
+            "Aim for 30 minutes of moderate exercise most days of the week.",
+            "Eat a variety of colorful fruits and vegetables for optimal nutrition.",
+            "Prioritize 7-9 hours of quality sleep each night.",
+            "Practice stress management through meditation or deep breathing.",
+            "Schedule regular check-ups with your healthcare provider.",
+            "Limit processed foods and choose whole grains when possible.",
+            "Take breaks from screens to protect your eye health.",
+            "Maintain good posture to prevent back and neck problems.",
+            "Practice good hand hygiene to prevent illness."
+        ]
+        
+        import random
+        daily_tip = random.choice(tips)
+        
+        return Response({
+            'tip': daily_tip,
+            'date': request.data.get('date', 'today'),
+            'category': 'general_wellness'
+        })
+    
+    def _get_user_health_context(self, user):
+        """Get user's health context for AI"""
+        try:
+            # Get recent health metrics
+            recent_metrics = HealthMetric.objects.filter(
+                user=user
+            ).order_by('-recorded_at')[:10]
+            
+            context = {
+                'user_id': str(user.id),
+                'recent_metrics': []
+            }
+            
+            for metric in recent_metrics:
+                context['recent_metrics'].append({
+                    'metric_type': metric.metric_type,
+                    'value': float(metric.value),
+                    'recorded_at': metric.recorded_at.isoformat()
+                })
+            
+            return context
+            
+        except Exception as e:
+            logger.error(f"Health context error: {str(e)}")
+            return {}
+    
+    def _update_conversation_analytics(self, conversation, ai_response):
+        """Update conversation analytics"""
+        try:
+            analytics, created = ConversationAnalytics.objects.get_or_create(
+                conversation=conversation,
+                defaults={
+                    'total_messages': 0,
+                    'health_topics_discussed': [],
+                    'recommendations_given': []
+                }
+            )
+            
+            analytics.total_messages += 2  # User + AI message
+            
+            # Add health topics
+            health_topics = ai_response.get('health_topics', [])
+            for topic in health_topics:
+                if topic not in analytics.health_topics_discussed:
+                    analytics.health_topics_discussed.append(topic)
+            
+            analytics.save()
+            
+        except Exception as e:
+            logger.error(f"Analytics update error: {str(e)}")
+    
+    def _log_api_usage(self, user, endpoint, tokens_used):
+        """Log API usage for billing/monitoring"""
+        try:
+            usage, created = APIUsageLog.objects.get_or_create(
+                user=user,
+                endpoint=endpoint,
+                date=timezone.now().date(),
+                defaults={
+                    'request_count': 0,
+                    'tokens_used': 0,
+                    'cost': 0.0000
+                }
+            )
+            
+            usage.request_count += 1
+            usage.tokens_used += tokens_used
+            # Simple cost calculation (adjust based on actual pricing)
+            usage.cost += tokens_used * 0.0001
+            usage.save()
+            
+        except Exception as e:
+            logger.error(f"Usage logging error: {str(e)}")

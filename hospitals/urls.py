@@ -1,12 +1,11 @@
-from django.urls import path
-from . import views
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import HospitalViewSet, DepartmentViewSet
+
+router = DefaultRouter()
+router.register('hospitals', HospitalViewSet)
+router.register('departments', DepartmentViewSet)
 
 urlpatterns = [
-    # RESTful Hospital endpoints
-    path('', views.HospitalListCreateView.as_view(), name='hospital-list-create'),
-    path('<uuid:pk>/', views.HospitalDetailView.as_view(), name='hospital-detail'),
-    
-    # Frontend integration endpoints
-    path('dropdown/', views.hospital_dropdown_list, name='hospital-dropdown'),
-    path('search/', views.hospital_search_autocomplete, name='hospital-search'),
+    path('', include(router.urls)),
 ]

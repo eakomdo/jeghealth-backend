@@ -3,125 +3,84 @@ from .models import Conversation, Message, ConversationAnalytics, APIUsageLog
 
 
 class MessageSerializer(serializers.ModelSerializer):
-    """
-    Serializer for Message model
-    """
+    """Serializer for AI conversation messages"""
+    
     class Meta:
         model = Message
-        fields = [
-            'id', 'sender', 'content', 'timestamp', 
-            'ai_model', 'response_time_ms', 'tokens_used'
-        ]
-        read_only_fields = ['id', 'timestamp', 'ai_model', 'response_time_ms', 'tokens_used']
+        fields = ['id', 'role', 'content', 'timestamp', 'metadata']
+        read_only_fields = ['id', 'timestamp']
 
 
-class ConversationListSerializer(serializers.ModelSerializer):
-    """
-    Serializer for listing conversations (metadata only)
-    """
-    message_count = serializers.SerializerMethodField()
-    last_message_time = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Conversation
-        fields = [
-            'id', 'title', 'created_at', 'updated_at', 
-            'message_count', 'last_message_time'
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-    
-    def get_message_count(self, obj):
-        return obj.messages.count()
-    
-    def get_last_message_time(self, obj):
-        last_message = obj.messages.last()
-        return last_message.timestamp if last_message else obj.created_at
-
-
-class ConversationDetailSerializer(serializers.ModelSerializer):
-    """
-    Serializer for detailed conversation with messages
-    """
+class ConversationSerializer(serializers.ModelSerializer):
+    """Serializer for AI conversations"""
     messages = MessageSerializer(many=True, read_only=True)
     message_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Conversation
-        fields = [
-            'id', 'title', 'created_at', 'updated_at', 
-            'messages', 'message_count'
-        ]
+        fields = ['id', 'title', 'created_at', 'updated_at', 'is_active', 'messages', 'message_count']
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_message_count(self, obj):
         return obj.messages.count()
 
 
-class ConversationCreateSerializer(serializers.Serializer):
-    """
-    Serializer for creating new conversation with initial message
-    """
-    message = serializers.CharField(max_length=5000, help_text="Initial user message")
-    conversation_id = serializers.UUIDField(required=False, help_text="Optional: continue existing conversation")
+class ConversationCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating new conversations"""
+    initial_message = serializers.CharField(write_only=True)
     
-    def validate_message(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Message cannot be empty")
-        return value.strip()
+    class Meta:
+        model = Conversation
+        fields = ['title', 'initial_message']
+    
+    def create(self, validated_data):
+        initial_message = validated_data.pop('initial_message')
+        user = self.context['request'].user
+        
+        # Create conversation
+        conversation = Conversation.objects.create(
+            user=user,
+            title=validated_data.get('title', f"Conversation {initial_message[:30]}...")
+        )
+        
+        # Create initial user message
+        Message.objects.create(
+            conversation=conversation,
+            role='user',
+            content=initial_message
+        )
+        
+        return conversation
 
 
-class ConversationResponseSerializer(serializers.Serializer):
-    """
-    Serializer for AI response
-    """
-    conversation_id = serializers.UUIDField()
-    response = serializers.CharField()
-    timestamp = serializers.DateTimeField()
-    message_id = serializers.UUIDField()
-    tokens_used = serializers.IntegerField(required=False)
-    response_time_ms = serializers.IntegerField(required=False)
+class HealthAnalysisRequestSerializer(serializers.Serializer):
+    """Serializer for health data analysis requests"""
+    health_metrics = serializers.JSONField()
+    analysis_type = serializers.ChoiceField(
+        choices=[
+            ('general', 'General Analysis'),
+            ('trends', 'Trend Analysis'),
+            ('alerts', 'Alert Analysis'),
+            ('recommendations', 'Recommendations')
+        ],
+        default='general'
+    )
+    include_recommendations = serializers.BooleanField(default=True)
 
 
 class ConversationAnalyticsSerializer(serializers.ModelSerializer):
-    """
-    Serializer for conversation analytics
-    """
-    conversation_title = serializers.CharField(source='conversation.title', read_only=True)
+    """Serializer for conversation analytics"""
     
     class Meta:
         model = ConversationAnalytics
-        fields = [
-            'conversation_title', 'total_messages', 'total_user_messages',
-            'total_bot_messages', 'total_tokens_used', 'average_response_time_ms',
-            'health_topics', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at']
+        fields = '__all__'
+        read_only_fields = ['conversation', 'created_at', 'updated_at']
 
 
-class APIUsageLogSerializer(serializers.ModelSerializer):
-    """
-    Serializer for API usage logs (admin/monitoring)
-    """
-    user_email = serializers.CharField(source='user.email', read_only=True)
+class APIUsageSerializer(serializers.ModelSerializer):
+    """Serializer for API usage tracking"""
     
     class Meta:
         model = APIUsageLog
-        fields = [
-            'id', 'user_email', 'endpoint_called', 'request_tokens',
-            'response_tokens', 'total_tokens', 'response_time_ms',
-            'success', 'error_message', 'status_code', 'estimated_cost',
-            'timestamp'
-        ]
-        read_only_fields = ['id', 'timestamp']
-
-
-class ConversationBulkDeleteSerializer(serializers.Serializer):
-    """
-    Serializer for bulk deleting conversations
-    """
-    confirm = serializers.BooleanField(help_text="Confirmation required for bulk delete")
-    
-    def validate_confirm(self, value):
-        if not value:
-            raise serializers.ValidationError("Confirmation is required to delete all conversations")
-        return value
+        fields = '__all__'
+        read_only_fields = ['user', 'date']
