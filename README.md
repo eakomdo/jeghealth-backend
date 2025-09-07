@@ -1,261 +1,219 @@
 # JEGHealth Backend API
 
-A comprehensive Django REST API backend for the JEGHealth mobile and web applications, providing secure health data management, IoT device integration, healthcare provider system, AI-powered health assistance, and complete user authentication.
-
-## 🎯 Quick Start
-
-**New to this project? Start here:**
-1. 📖 **[Complete Setup Guide](PROJECT_SETUP_GUIDE.md)** - Comprehensive installation and configuration
-2. 🧪 **[API Testing](test_real_provider_complete.sh)** - Test all endpoints with real data
-3. 💻 **[Frontend Integration](PROVIDER_FRONTEND_INTEGRATION_GUIDE.md)** - Complete frontend examples and docs
-4. 🤖 **[AI Chatbot](test_dr_jeg_api.py)** - Test Dr. JEG AI functionality
-5. 📱 **[Mobile Integration](#mobile-app-integration)** - Connect your mobile app
-
----
+A comprehensive Django REST API backend for the JEGHealth mobile and web applications, providing secure health data management, IoT device integration, and user authentication.
 
 ## 🚀 Features
 
 ### ✅ **Completed Features**
 
 #### 🔐 **Authentication & User Management**
-- Custom User model with comprehensive health-specific fields
-- JWT-based authentication (login, logout, token refresh, validation)
+- Custom User model with health-specific fields
+- JWT-based authentication (login, logout, token refresh)
 - User registration with email verification
-- **Healthcare Provider Registration System** with professional credentials
-- Role-based access control (user, admin, provider)
+- Role-based access control (user, admin, doctor)
 - Comprehensive user profiles with medical information
-- Password change functionality with strength validation
-- License verification system for healthcare providers
+- Password change functionality
 
-#### 🏥 **Healthcare Provider System** (NEW)
-- **Professional Registration Form** with all required fields:
-  - Professional titles (Dr., RN, NP, PA, etc.)
-  - Organization/Facility information
-  - Professional roles and specializations  
-  - License number and verification
-  - Contact information and credentials
-- **Provider Dashboard** with statistics and recent activities
-- **Provider Directory & Search** with advanced filtering
-- **Provider Profile Management** with real-time updates
-- **Hospital Integration** and provider-hospital relationships
-- **License Document Upload** and verification workflow
-
-#### 📊 **Health Metrics System**
-- Support for 15+ health metric types:
+#### 🏥 **Health Metrics System**
+- Support for multiple health metric types:
   - Blood Pressure (systolic/diastolic)
-  - Heart Rate, Weight, Blood Sugar, Temperature
-  - Oxygen Saturation, Steps, Sleep Hours, Calories
-  - BMI, Body Fat %, Muscle Mass, Cholesterol
-  - Medication Adherence, Exercise Minutes
+  - Heart Rate
+  - Weight
+  - Blood Sugar
+  - Temperature
+  - Oxygen Saturation
+  - Steps, Sleep Hours, Calories
+  - BMI, Body Fat %, Muscle Mass
 - Manual entry and IoT device integration
 - Bulk health metrics creation for IoT devices
-- Health metric targets and goals with progress tracking
-- Statistical summaries (daily/weekly/monthly/yearly)
-- Advanced filtering and analytics with trend analysis
-- Anomaly detection capabilities with alerts
+- Health metric targets and goals
+- Statistical summaries (daily/weekly/monthly)
+- Advanced filtering and analytics
+- Anomaly detection capabilities
 
 #### 📱 **IoT Device Integration**
-- Device registration and management with API keys
+- Device registration and management
 - Support for multiple device types (smartwatches, fitness trackers, medical devices)
-- Device verification and configuration management
-- Batch data upload processing with error handling
+- Device verification and configuration
+- Batch data upload processing
 - Device status monitoring and health checks
-- Device alerts and notifications system
+- Device alerts and notifications
+- API key authentication for devices
 - Complex device configuration support
-- Real-time data streaming capabilities
 
-#### 📅 **Appointments System**
+#### � **Appointments System**
 - Appointment scheduling and management
-- Healthcare provider integration with availability
-- Appointment status tracking (scheduled, confirmed, completed, cancelled)
-- Statistical reporting and analytics
-- Reminder notifications system
-- Integration with provider calendars
+- Healthcare provider integration
+- Appointment status tracking
+- Statistical reporting
 
 #### 💊 **Medications Management**
-- Medication tracking and adherence monitoring
-- Prescription management with provider integration
-- Dosage tracking and reminder system
-- Side effects and notes documentation
-- Integration with health metrics for adherence analysis
+- Medication tracking and reminders
+- Medication categories and classifications
+- Adherence monitoring
+- Statistical reporting
 
-#### 🤖 **AI-Powered Health Assistant (Dr. JEG)**
-- **Google Gemini AI Integration** for intelligent health advice
-- **Conversational Interface** with medical knowledge
-- **Health Data Analysis** with personalized insights
-- **Symptom Assessment** and recommendation system
-- **Conversation History** with context awareness
-- **Medical Information** lookup and explanations
-- **Health Trend Analysis** with AI-powered insights
+#### �🔧 **Technical Infrastructure**
+- PostgreSQL database support (SQLite for development)
+- Redis caching and Celery task queue
+- File storage with AWS S3 integration
+- Comprehensive API documentation with Swagger/ReDoc
+- CORS configuration for mobile app integration
+- Structured logging system
+- Robust error handling and validation
+- Security best practices implementation
 
-#### 🏥 **Hospital Management System**
-- Hospital registration and profile management
-- Department and service listings
-- Provider-hospital relationships and affiliations
-- Location and contact information management
-- Integration with appointment and provider systems
+### � **Advanced Features** (Future Enhancements)
+- Calendar integration
+- Appointment reminders
+- Telemedicine support
 
-### 🔄 **Advanced Features**
-
-#### 🔒 **Security & Compliance**
-- JWT token management with automatic refresh
-- API key authentication for IoT devices
-- Role-based permissions system
-- Data encryption and secure storage
-- HIPAA-compliant data handling practices
-- Audit logging for all sensitive operations
-- Rate limiting and DDoS protection
+#### 💊 **Medication Management**
+- Medication tracking and reminders
+- Dosage scheduling
+- Drug interaction checking
+- Prescription management
 
 #### 📊 **Analytics & Reporting**
-- Real-time health metrics dashboards
-- Provider performance analytics
-- System usage statistics
-- Health trend analysis with ML insights
-- Custom report generation
-- Data export capabilities (CSV, JSON, PDF)
+- Health trend analysis
+- Exportable reports (PDF/CSV)
+- Dashboard analytics
+- Health insights and recommendations
 
-#### 🌐 **API & Integration**
-- **RESTful API Design** with consistent endpoints
-- **OpenAPI/Swagger Documentation** with interactive testing
-- **CORS Configuration** for web application integration
-- **Comprehensive Frontend Examples** (React components, CSS, API service)
-- **Mobile App Integration** support with secure token management
-- **Webhook Support** for real-time notifications
-- **Third-party Integration** capabilities (Google Health, Apple HealthKit)
+#### 🚨 **Notifications System**
+- Email and push notifications
+- Health alert thresholds
+- Emergency contact notifications
+- Medication reminders
 
----
-
-## 📂 Project Structure
+## 📁 Project Structure
 
 ```
-jeghealth-backend/
-├── accounts/                    # 👥 User authentication & profiles
-│   ├── models.py               # User, UserProfile, Role models
-│   ├── serializers.py          # User & provider serializers
-│   ├── views.py               # Auth endpoints & provider registration
-│   └── urls.py                # Authentication routes
-├── providers/                   # 🏥 Healthcare provider system
-│   ├── models.py               # HealthcareProvider model
-│   ├── serializers.py          # Provider data serializers  
-│   ├── views.py               # Provider directory & search
-│   └── urls.py                # Provider routes
-├── health_metrics/             # 📊 Health data tracking
-│   ├── models.py               # HealthMetric, Target, Summary models
-│   ├── serializers.py          # Health data serializers
-│   ├── views.py               # Health metric endpoints
-│   └── urls.py                # Health metrics routes
-├── iot_devices/               # 🔌 IoT device integration
-│   ├── models.py               # IoTDevice, DataBatch, Alert models
-│   ├── serializers.py          # Device data serializers
-│   ├── views.py               # Device management endpoints
-│   └── urls.py                # IoT device routes
-├── appointments/              # 📅 Appointment scheduling
-│   ├── models.py               # Appointment, Schedule models
-│   ├── serializers.py          # Appointment serializers
-│   ├── views.py               # Appointment endpoints
-│   └── urls.py                # Appointment routes
-├── medications/               # 💊 Medication tracking
-│   ├── models.py               # Medication, Prescription models
-│   ├── serializers.py          # Medication serializers
-│   ├── views.py               # Medication endpoints
-│   └── urls.py                # Medication routes
-├── hospitals/                 # 🏥 Hospital management
-│   ├── models.py               # Hospital, Department models
-│   ├── serializers.py          # Hospital serializers
-│   ├── views.py               # Hospital endpoints
-│   └── urls.py                # Hospital routes
-├── dr_jeg/                    # 🤖 AI health assistant
-│   ├── models.py               # Conversation, Message models
-│   ├── serializers.py          # AI conversation serializers
-│   ├── views.py               # AI chat endpoints
-│   ├── gemini_service.py      # Google Gemini AI integration
-│   └── urls.py                # AI assistant routes
-├── frontend-examples/         # 💻 Frontend integration examples
-│   ├── ProviderRegistration.jsx   # React registration component
-│   ├── ProviderDashboard.jsx      # React dashboard component  
-│   ├── ProviderSearch.jsx         # React search component
-│   ├── providerAPI.js             # API service layer
-│   └── provider-styles.css        # Complete CSS styling
-├── jeghealth_backend/         # ⚙️ Main project settings
-│   ├── settings.py             # Django configuration
-│   ├── urls.py                # Main URL routing
-│   └── wsgi.py                # WSGI application
-├── media/                     # 📁 User uploads (profile pics, docs)
-├── static/                    # 🎨 Static files (CSS, JS, images)  
-├── logs/                      # 📋 Application logs
-├── requirements.txt           # 📦 Python dependencies
-├── .env.example              # 🔧 Environment template
-├── PROJECT_SETUP_GUIDE.md    # 📖 Complete setup instructions
-├── PROVIDER_FRONTEND_INTEGRATION_GUIDE.md  # 💻 Frontend integration docs
-└── manage.py                 # 🐍 Django management script
+jeghealth_backend/
+├── accounts/                 # User authentication & profiles
+│   ├── models.py            # User, UserProfile, Role models
+│   ├── serializers.py       # API serializers
+│   ├── views.py             # Authentication endpoints
+│   └── urls.py              # URL routing
+├── health_metrics/          # Health data management
+│   ├── models.py            # HealthMetric, Target, Summary models
+│   ├── serializers.py       # Health data serializers
+│   ├── views.py             # Health metric endpoints
+│   └── urls.py              # URL routing
+├── iot_devices/             # IoT device integration
+│   ├── models.py            # IoTDevice, DataBatch, Alert models
+│   ├── serializers.py       # Device data serializers
+│   ├── views.py             # Device management endpoints
+│   └── urls.py              # URL routing
+├── appointments/            # Appointment system (planned)
+├── medications/             # Medication tracking (planned)
+├── jeghealth_backend/       # Main project settings
+│   ├── settings.py          # Django configuration
+│   ├── urls.py              # Main URL routing
+│   └── wsgi.py              # WSGI application
+├── requirements.txt         # Python dependencies
+├── .env                     # Environment variables
+└── manage.py                # Django management script
 ```
-
----
 
 ## 🛠️ Installation & Setup
 
-### 🚀 Quick Setup (5 minutes)
+### Prerequisites
+- Python 3.8+ 
+- Virtual environment (venv/conda)
+- PostgreSQL (for production)
+- Redis (for caching and Celery)
+
+### 1. Clone and Setup
 ```bash
-# 1. Clone repository
-git clone <repository-url>
-cd jeghealth-backend
+# Clone the repository
+git clone <your-repo-url>
+cd jeghealth_backend
 
-# 2. Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# 3. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
+```
 
-# 4. Setup environment
-cp .env.example .env
-# Edit .env with your settings (SECRET_KEY is required)
+### 2. Environment Configuration
+Copy `.env.example` to `.env` and configure your settings:
 
-# 5. Setup database
+```env
+# Database (for production, use PostgreSQL)
+DB_ENGINE=django.db.backends.postgresql
+DB_NAME=jeghealth_db
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_HOST=localhost
+DB_PORT=5432
+
+# Security
+SECRET_KEY=your-super-secret-key-here
+DEBUG=False
+ALLOWED_HOSTS=your-domain.com,api.jeghealth.com
+
+# Email
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+
+# AWS S3 (for file storage)
+AWS_ACCESS_KEY_ID=your-aws-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret
+AWS_STORAGE_BUCKET_NAME=jeghealth-files
+
+# Redis (for caching and Celery)
+REDIS_URL=redis://localhost:6379/0
+```
+
+### 3. Database Setup
+```bash
+# Apply migrations
 python manage.py migrate
+
+# Create superuser
 python manage.py createsuperuser
 
-# 6. Run development server
-python manage.py runserver
+# Load initial data (optional)
+python manage.py loaddata fixtures/initial_roles.json
 ```
 
-**🎯 For detailed setup instructions, see [PROJECT_SETUP_GUIDE.md](PROJECT_SETUP_GUIDE.md)**
-
-### 🧪 Test the Installation
+### 4. Start Development Server
 ```bash
-# Test provider registration and authentication
-bash test_real_provider_complete.sh
+# Start Django server
+python manage.py runserver
 
-# Test AI chatbot functionality  
-python test_dr_jeg_api.py
+# In another terminal, start Celery worker (for background tasks)
+celery -A jeghealth_backend worker -l info
 
-# Test IoT device integration
-python test_iot_devices.py
+# Start Celery beat (for scheduled tasks)
+celery -A jeghealth_backend beat -l info
 ```
-
----
 
 ## 📚 API Documentation
 
-### 🌐 Base URLs
-- **Development:** `http://localhost:8000/api/v1/`  
-- **Production:** `https://your-domain.com/api/v1/`
+### Base URL
+- Development: `http://localhost:8000/api/v1/`
+- Production: `https://your-domain.com/api/v1/`
 
-### 📖 Interactive Documentation
-- **Swagger UI:** `http://localhost:8000/api/docs/` - Interactive API testing
-- **ReDoc:** `http://localhost:8000/api/redoc/` - Beautiful API documentation
-- **OpenAPI Schema:** `http://localhost:8000/api/schema/` - Machine-readable API spec
+### Interactive Documentation
+- Swagger UI: `http://localhost:8000/api/docs/`
+- ReDoc: `http://localhost:8000/api/redoc/`
+- OpenAPI Schema: `http://localhost:8000/api/schema/`
 
-### 🔐 Authentication Endpoints
+### Authentication Endpoints
 
-#### User Registration
+#### Register User
 ```http
 POST /api/v1/auth/register/
 Content-Type: application/json
 
 {
   "email": "user@example.com",
-  "first_name": "John", 
+  "username": "username",
+  "first_name": "John",
   "last_name": "Doe",
   "password": "SecurePass123",
   "password_confirm": "SecurePass123",
@@ -264,7 +222,7 @@ Content-Type: application/json
 }
 ```
 
-#### User Login  
+#### Login
 ```http
 POST /api/v1/auth/login/
 Content-Type: application/json
@@ -273,57 +231,150 @@ Content-Type: application/json
   "email": "user@example.com",
   "password": "SecurePass123"
 }
-
-Response:
-{
-  "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-  "user": { ... }
-}
 ```
 
-#### Healthcare Provider Registration
+#### Get Current User (matches your mobile app's getCurrentUser)
 ```http
-POST /api/v1/auth/provider/register/
+GET /api/v1/auth/current-user/
+Authorization: Bearer <access_token>
+```
+
+### Health Metrics Endpoints (Coming Soon)
+
+#### Add Health Metric
+```http
+POST /api/v1/health-metrics/
+Authorization: Bearer <access_token>
 Content-Type: application/json
 
 {
-  "professional_title": "Dr.",
-  "first_name": "Joseph",
-  "last_name": "Ewool", 
-  "email": "joseph.ewool@hospital.com",
-  "password": "SecurePass123",
-  "password_confirm": "SecurePass123",
-  "organization_facility": "General Hospital",
-  "professional_role": "Physician",
-  "license_number": "MD123456789",
-  "specialization": "Cardiology"
+  "metric_type": "blood_pressure",
+  "systolic_value": 120,
+  "diastolic_value": 80,
+  "unit": "mmHg",
+  "recorded_at": "2025-07-24T12:00:00Z",
+  "is_manual_entry": true,
+  "notes": "Morning reading"
 }
 ```
 
-### 🏥 Provider System Endpoints
+#### Get Health Metrics
 ```http
-GET /api/v1/providers/                    # List all providers
-GET /api/v1/providers/search/             # Search providers  
-GET /api/v1/providers/{id}/               # Provider details
-GET /api/v1/auth/provider/profile/        # Current provider profile
-PATCH /api/v1/auth/provider/profile/      # Update provider profile
-GET /api/v1/auth/provider/dashboard/      # Provider dashboard
+GET /api/v1/health-metrics/?metric_type=blood_pressure&limit=20
+Authorization: Bearer <access_token>
 ```
 
-### 📊 Health Metrics Endpoints
-```http
-GET /api/v1/health-metrics/               # List health metrics
-POST /api/v1/health-metrics/              # Create health metric
-GET /api/v1/health-metrics/statistics/    # Get health statistics
-POST /api/v1/health-metrics/bulk-create/  # Bulk upload metrics
+## 🔗 Mobile App Integration
+
+### Authentication Flow
+Your mobile app can integrate with this backend by replacing Appwrite calls:
+
+```javascript
+// Replace AuthService.loginUser() with:
+const response = await fetch('http://localhost:8000/api/v1/auth/login/', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    email: email,
+    password: password
+  })
+});
+
+const data = await response.json();
+// Store tokens in secure storage
+await SecureStore.setItemAsync('access_token', data.tokens.access);
+await SecureStore.setItemAsync('refresh_token', data.tokens.refresh);
 ```
 
-### 🤖 AI Assistant (Dr. JEG) Endpoints
-```http
-POST /api/v1/dr-jeg/chat/                 # Chat with AI assistant
-POST /api/v1/dr-jeg/analyze-health/       # Analyze health data
-GET /api/v1/dr-jeg/conversations/         # Get chat history
+### Health Metrics Integration
+```javascript
+// Replace DatabaseService.createHealthMetric() with:
+const response = await fetch('http://localhost:8000/api/v1/health-metrics/', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${accessToken}`
+  },
+  body: JSON.stringify(metricData)
+});
 ```
+
+## 🗄️ Database Models
+
+### User Models
+- **User**: Extended Django user with health-specific fields
+- **UserProfile**: Detailed health profile (BMI, medical conditions, preferences)
+- **Role**: Role-based permissions system
+- **UserRole**: User-role assignments
+
+### Health Models
+- **HealthMetric**: Individual health readings
+- **HealthMetricTarget**: User-defined health goals
+- **HealthMetricSummary**: Statistical summaries for analytics
+
+### IoT Models
+- **IoTDevice**: Registered health devices
+- **DeviceDataBatch**: Batch data uploads from devices
+- **DeviceAlert**: Device status alerts and notifications
+
+## 🔒 Security Features
+
+- **JWT Authentication**: Secure token-based authentication
+- **Role-Based Access Control**: Granular permissions system
+- **API Key Authentication**: For IoT devices
+- **Data Encryption**: Sensitive data encryption at rest
+- **CORS Configuration**: Secure cross-origin requests
+- **Input Validation**: Comprehensive data validation
+- **Rate Limiting**: API rate limiting (production)
+
+## 🧪 Testing
+
+```bash
+# Run tests
+python manage.py test
+
+# Run with coverage
+coverage run --source='.' manage.py test
+coverage report
+coverage html  # Generates HTML coverage report
+```
+
+## 🚀 Deployment
+
+### Using Docker (Recommended)
+```bash
+# Build and run with docker-compose
+docker-compose up -d
+
+# Apply migrations
+docker-compose exec web python manage.py migrate
+
+# Create superuser
+docker-compose exec web python manage.py createsuperuser
+```
+
+### Manual Deployment
+1. Set up PostgreSQL and Redis
+2. Configure environment variables for production
+3. Collect static files: `python manage.py collectstatic`
+4. Set up Nginx as reverse proxy
+5. Use Gunicorn as WSGI server
+6. Set up SSL certificates
+7. Configure Celery worker and beat services
+
+## 📞 Support
+
+For questions, issues, or contributions:
+- Create an issue in the repository
+- Contact: your-email@example.com
+- Documentation: [Link to detailed docs]
+
+## 📄 License
+
+[Your License Here]
 
 ---
+
+**Note**: This backend is designed to seamlessly replace Appwrite in your existing JEGHealth mobile app while providing enhanced features, better performance, and full control over your health data infrastructure.

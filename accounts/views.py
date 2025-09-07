@@ -15,8 +15,7 @@ from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer, UserSerializer,
     UserUpdateSerializer, UserProfileSerializer, ChangePasswordSerializer,
     UserWithRolesSerializer, RoleSerializer, ComprehensiveUserRegistrationSerializer,
-    BasicInformationSerializer, PersonalInformationSerializer, ProviderRegistrationSerializer,
-    ProviderProfileSerializer
+    BasicInformationSerializer, PersonalInformationSerializer
 )
 
 
@@ -64,12 +63,7 @@ class RegisterView(generics.CreateAPIView):
                 logger.info("User registered successfully: %s", request.data.get('email'))
                 return Response({
                     'message': 'User registered successfully',
-                    'authUser': user_serializer.data,
-                    'userProfile': user_serializer.data.get('profile'),
-                    'role': {
-                        'name': user_serializer.data.get('roles', ['user'])[0] if user_serializer.data.get('roles') else 'user',
-                        'permissions': user_serializer.data.get('permissions', {})
-                    },
+                    'user': user_serializer.data,
                     'tokens': {
                         'access': str(refresh.access_token),
                         'refresh': str(refresh),
@@ -113,12 +107,7 @@ class LoginView(APIView):
             
             return Response({
                 'message': 'Login successful',
-                'authUser': user_serializer.data,
-                'userProfile': user_serializer.data.get('profile'),
-                'role': {
-                    'name': user_serializer.data.get('roles', ['user'])[0] if user_serializer.data.get('roles') else 'user',
-                    'permissions': user_serializer.data.get('permissions', {})
-                },
+                'user': user_serializer.data,
                 'tokens': {
                     'access': str(refresh.access_token),
                     'refresh': str(refresh),
@@ -484,12 +473,7 @@ class ComprehensiveRegisterView(generics.CreateAPIView):
                 logger.info("User registered successfully with profile: %s", request.data.get('email'))
                 return Response({
                     'message': 'User registered successfully with profile data',
-                    'authUser': user_serializer.data,
-                    'userProfile': user_serializer.data.get('profile'),
-                    'role': {
-                        'name': user_serializer.data.get('roles', ['user'])[0] if user_serializer.data.get('roles') else 'user',
-                        'permissions': user_serializer.data.get('permissions', {})
-                    },
+                    'user': user_serializer.data,
                     'tokens': {
                         'access': str(refresh.access_token),
                         'refresh': str(refresh),
@@ -576,240 +560,3 @@ class PersonalInformationView(generics.RetrieveUpdateAPIView):
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
-
-
-class ProviderRegisterView(generics.CreateAPIView):
-    """
-    Healthcare Provider registration endpoint.
-    Creates both a User account and HealthcareProvider profile.
-    """
-    serializer_class = ProviderRegistrationSerializer
-    permission_classes = [permissions.AllowAny]
-    
-    @extend_schema(
-        summary="Register a new healthcare provider",
-        description="Create a new healthcare provider account with credentials and professional information.",
-        tags=["Provider Authentication"],
-        examples=[
-            OpenApiExample(
-                'Provider Registration',
-                summary='Register as healthcare provider',
-                description='Complete provider registration with credentials and professional details',
-                value={
-                    "email": "dr.smith@example.com",
-                    "username": "dr_smith",
-                    "first_name": "John",
-                    "last_name": "Smith",
-                    "phone_number": "+1234567890",
-                    "password": "SecurePass123!",
-                    "password_confirm": "SecurePass123!",
-                    "specialization": "General Practice",
-                    "license_number": "MD123456",
-                    "years_of_experience": 5,
-                    "consultation_fee": "75.00",
-                    "bio": "Experienced family doctor with focus on preventive care",
-                    "hospital_clinic": "City Medical Center",
-                    "address": "123 Medical Street, Health City, HC 12345"
-                },
-                request_only=True,
-            )
-        ]
-    )
-    def post(self, request, *args, **kwargs):
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info("Received provider registration request: %s", request.data.get('email'))
-        
-        serializer = self.get_serializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-            with transaction.atomic():
-                user = serializer.save()
-                
-                # Assign provider role
-                provider_role, created = Role.objects.get_or_create(
-                    name='provider',
-                    defaults={
-                        'description': 'Healthcare provider role',
-                        'permissions': {
-                            'can_view_own_data': True,
-                            'can_edit_own_profile': True,
-                            'can_view_appointments': True,
-                            'can_manage_appointments': True,
-                            'can_view_patient_data': True,
-                            'can_add_medical_records': True,
-                            'can_prescribe_medications': True,
-                        }
-                    }
-                )
-                
-                UserRole.objects.create(user=user, role=provider_role)
-                
-                # Create response with user data
-                refresh = RefreshToken.for_user(user)
-                user_serializer = UserWithRolesSerializer(user)
-                
-                logger.info("Healthcare provider registered successfully: %s", request.data.get('email'))
-                return Response({
-                    'message': 'Healthcare provider registered successfully',
-                    'authUser': user_serializer.data,
-                    'userProfile': user_serializer.data.get('profile'),
-                    'role': {
-                        'name': 'provider',
-                        'permissions': provider_role.permissions
-                    },
-                    'tokens': {
-                        'access': str(refresh.access_token),
-                        'refresh': str(refresh),
-                    },
-                }, status=status.HTTP_201_CREATED)
-                
-        except Exception as e:
-            logger.error("Provider registration error: %s", str(e))
-            return Response({
-                'error': 'Registration failed',
-                'details': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-
-class ProviderProfileView(generics.RetrieveUpdateAPIView):
-    """
-    Get and update healthcare provider profile information.
-    """
-    serializer_class = ProviderProfileSerializer
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_object(self):
-        # Get provider record linked to current user
-        try:
-            from providers.models import HealthcareProvider
-            return HealthcareProvider.objects.get(email=self.request.user.email)
-        except HealthcareProvider.DoesNotExist:
-            return None
-    
-    @extend_schema(
-        summary="Get provider profile",
-        description="Retrieve the authenticated healthcare provider's profile information.",
-        tags=["Provider Profile"],
-        auth=['Bearer']
-    )
-    def get(self, request, *args, **kwargs):
-        provider = self.get_object()
-        if not provider:
-            return Response({
-                'error': 'Provider profile not found'
-            }, status=status.HTTP_404_NOT_FOUND)
-        
-        serializer = self.get_serializer(provider)
-        return Response(serializer.data)
-    
-    @extend_schema(
-        summary="Update provider profile",
-        description="Update the authenticated healthcare provider's profile information.",
-        tags=["Provider Profile"],
-        auth=['Bearer']
-    )
-    def patch(self, request, *args, **kwargs):
-        provider = self.get_object()
-        if not provider:
-            return Response({
-                'error': 'Provider profile not found'
-            }, status=status.HTTP_404_NOT_FOUND)
-        
-        serializer = self.get_serializer(provider, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-@extend_schema(
-    summary="Get provider dashboard data",
-    description="Get dashboard statistics and data for healthcare providers.",
-    tags=["Provider Dashboard"],
-    auth=['Bearer']
-)
-def provider_dashboard(request):
-    """
-    Get provider dashboard data including appointments, statistics, etc.
-    """
-    try:
-        from providers.models import HealthcareProvider
-        from appointments.models import Appointment
-        from django.db.models import Count, Q
-        from django.utils import timezone
-        from datetime import timedelta
-        
-        # Get provider record
-        try:
-            provider = HealthcareProvider.objects.get(email=request.user.email)
-        except HealthcareProvider.DoesNotExist:
-            return Response({
-                'error': 'Provider profile not found'
-            }, status=status.HTTP_404_NOT_FOUND)
-        
-        # Get appointment statistics
-        today = timezone.now().date()
-        week_start = today - timedelta(days=today.weekday())
-        month_start = today.replace(day=1)
-        
-        appointments = Appointment.objects.filter(healthcare_provider=provider)
-        
-        stats = {
-            'total_appointments': appointments.count(),
-            'today_appointments': appointments.filter(
-                appointment_date__date=today
-            ).count(),
-            'week_appointments': appointments.filter(
-                appointment_date__date__gte=week_start
-            ).count(),
-            'month_appointments': appointments.filter(
-                appointment_date__date__gte=month_start
-            ).count(),
-            'upcoming_appointments': appointments.filter(
-                appointment_date__gt=timezone.now(),
-                status__in=['scheduled', 'confirmed']
-            ).count(),
-            'completed_appointments': appointments.filter(
-                status='completed'
-            ).count(),
-        }
-        
-        # Get recent appointments
-        recent_appointments = appointments.filter(
-            appointment_date__gte=timezone.now()
-        ).order_by('appointment_date')[:5]
-        
-        recent_appointments_data = []
-        for appointment in recent_appointments:
-            recent_appointments_data.append({
-                'id': str(appointment.id),
-                'patient_name': appointment.patient.get_full_name(),
-                'appointment_date': appointment.appointment_date,
-                'status': appointment.status,
-                'chief_complaint': appointment.chief_complaint,
-                'duration_minutes': appointment.duration_minutes,
-            })
-        
-        return Response({
-            'provider': {
-                'id': str(provider.id),
-                'full_name': provider.full_name,
-                'specialization': provider.specialization,
-                'years_of_experience': provider.years_of_experience,
-                'consultation_fee': str(provider.consultation_fee),
-            },
-            'statistics': stats,
-            'recent_appointments': recent_appointments_data,
-        }, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error getting provider dashboard: {str(e)}")
-        return Response({
-            'error': 'Failed to load dashboard data'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
