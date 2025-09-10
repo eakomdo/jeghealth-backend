@@ -397,3 +397,282 @@ class DeviceAlert(models.Model):
     
     def __str__(self):
         return f"{self.get_alert_type_display()} - {self.device.name} ({self.get_severity_display()})"
+
+
+class DeviceScanSession(models.Model):
+    """
+    Model to track device scanning sessions for iOS device detection
+    """
+    SCAN_TYPE_CHOICES = [
+        ('BLUETOOTH', _('Bluetooth Scan')),
+        ('WIFI', _('WiFi Scan')),
+        ('COMBINED', _('Combined Scan')),
+    ]
+    
+    STATUS_CHOICES = [
+        ('INITIATED', _('Initiated')),
+        ('SCANNING', _('Scanning')),
+        ('COMPLETED', _('Completed')),
+        ('FAILED', _('Failed')),
+        ('TIMEOUT', _('Timeout')),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='device_scan_sessions'
+    )
+    scan_type = models.CharField(
+        _('Scan Type'),
+        max_length=20,
+        choices=SCAN_TYPE_CHOICES
+    )
+    status = models.CharField(
+        _('Status'),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='INITIATED'
+    )
+    scan_duration = models.IntegerField(
+        _('Scan Duration (seconds)'),
+        default=30,
+        help_text=_('Duration of the scan in seconds')
+    )
+    devices_found = models.IntegerField(
+        _('Devices Found'),
+        default=0
+    )
+    ios_devices_found = models.IntegerField(
+        _('iOS Devices Found'),
+        default=0
+    )
+    scan_results = models.JSONField(
+        _('Scan Results'),
+        default=dict,
+        help_text=_('Raw scan results data')
+    )
+    error_message = models.TextField(
+        _('Error Message'),
+        blank=True,
+        help_text=_('Error message if scan failed')
+    )
+    initiated_at = models.DateTimeField(_('Initiated At'), auto_now_add=True)
+    completed_at = models.DateTimeField(_('Completed At'), blank=True, null=True)
+    
+    class Meta:
+        verbose_name = _('Device Scan Session')
+        verbose_name_plural = _('Device Scan Sessions')
+        ordering = ['-initiated_at']
+    
+    def __str__(self):
+        return f"{self.scan_type} scan by {self.user.email} - {self.status}"
+
+
+class DetectedDevice(models.Model):
+    """
+    Model to store detected devices from Bluetooth/WiFi scans
+    """
+    DEVICE_TYPE_CHOICES = [
+        ('IOS_PHONE', _('iOS Phone')),
+        ('IOS_TABLET', _('iOS Tablet')),
+        ('IOS_WATCH', _('Apple Watch')),
+        ('IOS_AIRPODS', _('AirPods')),
+        ('IOS_UNKNOWN', _('Unknown iOS Device')),
+        ('ANDROID', _('Android Device')),
+        ('WINDOWS', _('Windows Device')),
+        ('MAC', _('Mac Device')),
+        ('UNKNOWN', _('Unknown Device')),
+    ]
+    
+    CONNECTION_TYPE_CHOICES = [
+        ('BLUETOOTH', _('Bluetooth')),
+        ('WIFI', _('WiFi')),
+        ('BOTH', _('Both')),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    scan_session = models.ForeignKey(
+        DeviceScanSession,
+        on_delete=models.CASCADE,
+        related_name='detected_devices'
+    )
+    device_name = models.CharField(
+        _('Device Name'),
+        max_length=100,
+        blank=True,
+        help_text=_('Device name if available')
+    )
+    device_type = models.CharField(
+        _('Device Type'),
+        max_length=20,
+        choices=DEVICE_TYPE_CHOICES,
+        default='UNKNOWN'
+    )
+    mac_address = models.CharField(
+        _('MAC Address'),
+        max_length=17,
+        blank=True,
+        help_text=_('Device MAC address if available')
+    )
+    bluetooth_address = models.CharField(
+        _('Bluetooth Address'),
+        max_length=17,
+        blank=True,
+        help_text=_('Bluetooth address if available')
+    )
+    signal_strength = models.IntegerField(
+        _('Signal Strength (dBm)'),
+        blank=True,
+        null=True,
+        help_text=_('Signal strength in dBm')
+    )
+    connection_type = models.CharField(
+        _('Connection Type'),
+        max_length=20,
+        choices=CONNECTION_TYPE_CHOICES
+    )
+    manufacturer = models.CharField(
+        _('Manufacturer'),
+        max_length=50,
+        blank=True,
+        help_text=_('Device manufacturer if detected')
+    )
+    ios_version = models.CharField(
+        _('iOS Version'),
+        max_length=20,
+        blank=True,
+        help_text=_('iOS version if detected')
+    )
+    device_model = models.CharField(
+        _('Device Model'),
+        max_length=50,
+        blank=True,
+        help_text=_('Device model if detected')
+    )
+    is_paired = models.BooleanField(
+        _('Is Paired'),
+        default=False,
+        help_text=_('Whether device is paired with scanning device')
+    )
+    is_ios_device = models.BooleanField(
+        _('Is iOS Device'),
+        default=False,
+        help_text=_('Whether this is confirmed to be an iOS device')
+    )
+    additional_info = models.JSONField(
+        _('Additional Info'),
+        default=dict,
+        help_text=_('Additional device information')
+    )
+    first_seen = models.DateTimeField(_('First Seen'), auto_now_add=True)
+    last_seen = models.DateTimeField(_('Last Seen'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('Detected Device')
+        verbose_name_plural = _('Detected Devices')
+        ordering = ['-last_seen']
+        unique_together = ['scan_session', 'mac_address', 'bluetooth_address']
+    
+    def __str__(self):
+        return f"{self.device_name or 'Unknown'} ({self.device_type}) - {self.connection_type}"
+
+
+class iOSDeviceProfile(models.Model):
+    """
+    Model to store iOS device profiles for health data integration
+    """
+    DEVICE_STATUS_CHOICES = [
+        ('DISCOVERED', _('Discovered')),
+        ('PAIRED', _('Paired')),
+        ('CONNECTED', _('Connected')),
+        ('SYNCING', _('Syncing')),
+        ('DISCONNECTED', _('Disconnected')),
+        ('ERROR', _('Error')),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='ios_device_profiles'
+    )
+    detected_device = models.OneToOneField(
+        DetectedDevice,
+        on_delete=models.CASCADE,
+        related_name='ios_profile',
+        blank=True,
+        null=True
+    )
+    device_name = models.CharField(
+        _('Device Name'),
+        max_length=100,
+        help_text=_('User-friendly device name')
+    )
+    device_identifier = models.CharField(
+        _('Device Identifier'),
+        max_length=100,
+        unique=True,
+        help_text=_('Unique identifier for the iOS device')
+    )
+    device_model = models.CharField(
+        _('Device Model'),
+        max_length=50,
+        blank=True
+    )
+    ios_version = models.CharField(
+        _('iOS Version'),
+        max_length=20,
+        blank=True
+    )
+    health_app_version = models.CharField(
+        _('Health App Version'),
+        max_length=20,
+        blank=True
+    )
+    status = models.CharField(
+        _('Status'),
+        max_length=20,
+        choices=DEVICE_STATUS_CHOICES,
+        default='DISCOVERED'
+    )
+    last_sync = models.DateTimeField(
+        _('Last Sync'),
+        blank=True,
+        null=True
+    )
+    sync_frequency = models.IntegerField(
+        _('Sync Frequency (minutes)'),
+        default=60,
+        help_text=_('How often to sync data in minutes')
+    )
+    available_health_data = models.JSONField(
+        _('Available Health Data'),
+        default=list,
+        help_text=_('List of health data types available from this device')
+    )
+    permissions_granted = models.JSONField(
+        _('Permissions Granted'),
+        default=dict,
+        help_text=_('Health data permissions granted by user')
+    )
+    sync_settings = models.JSONField(
+        _('Sync Settings'),
+        default=dict,
+        help_text=_('Device-specific sync settings')
+    )
+    is_primary_device = models.BooleanField(
+        _('Is Primary Device'),
+        default=False,
+        help_text=_('Whether this is the user\'s primary health device')
+    )
+    created_at = models.DateTimeField(_('Created At'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('Updated At'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('iOS Device Profile')
+        verbose_name_plural = _('iOS Device Profiles')
+        ordering = ['-updated_at']
+    
+    def __str__(self):
+        return f"{self.device_name} ({self.user.email}) - {self.status}"

@@ -4,62 +4,46 @@ from .models import Conversation, Message, ConversationAnalytics, APIUsageLog
 
 @admin.register(Conversation)
 class ConversationAdmin(admin.ModelAdmin):
-    list_display = ['title', 'user', 'created_at', 'updated_at', 'is_active', 'message_count']
+    list_display = ['id', 'title', 'user', 'created_at', 'is_active']
     list_filter = ['is_active', 'created_at', 'updated_at']
-    search_fields = ['title', 'user__email', 'user__first_name', 'user__last_name']
+    search_fields = ['title', 'user__email', 'user__username']
     readonly_fields = ['id', 'created_at', 'updated_at']
-    ordering = ['-updated_at']
-    
-    def message_count(self, obj):
-        return obj.messages.count()
-    message_count.short_description = 'Messages'
+    raw_id_fields = ['user']
 
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ['conversation_title', 'sender', 'content_preview', 'timestamp', 'ai_model', 'response_time_ms']
-    list_filter = ['sender', 'ai_model', 'timestamp']
-    search_fields = ['content', 'conversation__title', 'conversation__user__email']
+    list_display = ['id', 'conversation', 'content_preview', 'timestamp']
+    list_filter = ['timestamp']
+    search_fields = ['content', 'conversation__title']
     readonly_fields = ['id', 'timestamp']
-    ordering = ['-timestamp']
-    
-    def conversation_title(self, obj):
-        return obj.conversation.title
-    conversation_title.short_description = 'Conversation'
+    raw_id_fields = ['conversation']
     
     def content_preview(self, obj):
-        return obj.content[:100] + '...' if len(obj.content) > 100 else obj.content
-    content_preview.short_description = 'Content'
+        """Show first 50 characters of content"""
+        return obj.content[:50] + "..." if len(obj.content) > 50 else obj.content
+    content_preview.short_description = 'Content Preview'
 
 
 @admin.register(ConversationAnalytics)
 class ConversationAnalyticsAdmin(admin.ModelAdmin):
-    list_display = [
-        'conversation_title', 'total_messages', 'total_user_messages', 
-        'total_bot_messages', 'total_tokens_used', 'average_response_time_ms'
-    ]
-    readonly_fields = [
-        'conversation', 'total_messages', 'total_user_messages', 
-        'total_bot_messages', 'created_at', 'updated_at'
-    ]
-    ordering = ['-updated_at']
-    
-    def conversation_title(self, obj):
-        return obj.conversation.title
-    conversation_title.short_description = 'Conversation'
+    list_display = ['id', 'conversation', 'created_at']
+    list_filter = ['created_at', 'updated_at']
+    search_fields = ['conversation__title']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['conversation']
 
 
 @admin.register(APIUsageLog)
 class APIUsageLogAdmin(admin.ModelAdmin):
     list_display = [
-        'user_email', 'endpoint_called', 'success', 'response_time_ms', 
-        'total_tokens', 'timestamp'
+        'id', 'user', 'endpoint_called', 'total_tokens', 
+        'success', 'estimated_cost', 'response_time_ms'
     ]
-    list_filter = ['success', 'endpoint_called', 'timestamp']
-    search_fields = ['user__email', 'error_message']
-    readonly_fields = ['id', 'timestamp']
-    ordering = ['-timestamp']
+    list_filter = ['success', 'endpoint_called']
+    search_fields = ['user__email', 'user__username', 'error_message']
+    readonly_fields = ['id']
+    raw_id_fields = ['user', 'conversation']
     
-    def user_email(self, obj):
-        return obj.user.email
-    user_email.short_description = 'User'
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user', 'conversation')

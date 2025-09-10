@@ -249,3 +249,42 @@ class ConversationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Conversation
         fields = ['id', 'user', 'title', 'message_count', 'created_at', 'updated_at']
+
+
+# Response Serializers for API Documentation
+class AIResponseSerializer(serializers.Serializer):
+    """Serializer for AI response format"""
+    conversation_id = serializers.UUIDField()
+    user_message = serializers.CharField()
+    ai_response = serializers.CharField()
+    message_id = serializers.IntegerField()
+    timestamp = serializers.DateTimeField()
+    conversation_title = serializers.CharField()
+
+
+class HealthAnalysisResponseSerializer(serializers.Serializer):
+    """Serializer for health analysis response format"""
+    analysis = serializers.CharField(help_text="AI health analysis")
+    recommendations = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="List of health recommendations"
+    )
+    urgency_level = serializers.CharField(help_text="Urgency level: low, medium, high, emergency")
+    suggested_specialists = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        help_text="Suggested medical specialists to consult"
+    )
+    disclaimer = serializers.CharField(help_text="Medical disclaimer")
+    conversation_id = serializers.UUIDField(required=False, help_text="Created conversation ID")
+
+
+class ConversationStatsSerializer(serializers.Serializer):
+    """Serializer for conversation statistics"""
+    total_conversations = serializers.IntegerField()
+    active_conversations = serializers.IntegerField()
+    total_messages = serializers.IntegerField()
+    average_messages_per_conversation = serializers.FloatField()
+    conversations_today = serializers.IntegerField()
+    conversations_this_week = serializers.IntegerField()
+    conversations_this_month = serializers.IntegerField()

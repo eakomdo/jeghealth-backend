@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from .models import IoTDevice, DeviceDataBatch, DeviceAlert
+from .models import IoTDevice, DeviceDataBatch, DeviceAlert, DeviceScanSession, DetectedDevice, iOSDeviceProfile
 
 User = get_user_model()
 
@@ -255,3 +255,210 @@ class DeviceHealthCheckSerializer(serializers.Serializer):
     sensor_status = serializers.DictField(required=False)
     memory_usage = serializers.FloatField(required=False)
     storage_usage = serializers.FloatField(required=False)
+
+
+class DeviceScanSessionSerializer(serializers.ModelSerializer):
+    """Serializer for device scan sessions"""
+    scan_type_display = serializers.CharField(source='get_scan_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    duration_elapsed = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = DeviceScanSession
+        fields = [
+            'id', 'scan_type', 'scan_type_display', 'status', 'status_display',
+            'scan_duration', 'devices_found', 'ios_devices_found', 'scan_results',
+            'error_message', 'initiated_at', 'completed_at', 'duration_elapsed'
+        ]
+        read_only_fields = [
+            'id', 'devices_found', 'ios_devices_found', 'scan_results',
+            'error_message', 'initiated_at', 'completed_at'
+        ]
+    
+    def get_duration_elapsed(self, obj):
+        """Calculate elapsed time for ongoing scans"""
+        if obj.status in ['SCANNING', 'INITIATED']:
+            elapsed = timezone.now() - obj.initiated_at
+            return int(elapsed.total_seconds())
+        elif obj.completed_at:
+            elapsed = obj.completed_at - obj.initiated_at
+            return int(elapsed.total_seconds())
+        return 0
+
+
+class DeviceScanCreateSerializer(serializers.Serializer):
+    """Serializer for creating device scan sessions"""
+    scan_type = serializers.ChoiceField(
+        choices=['BLUETOOTH', 'WIFI', 'COMBINED'],
+        default='COMBINED',
+        help_text="Type of scan to perform"
+    )
+    duration = serializers.IntegerField(
+        default=30,
+        min_value=10,
+        max_value=300,
+        help_text="Scan duration in seconds (10-300)"
+    )
+    
+    def validate_duration(self, value):
+        """Validate scan duration"""
+        if value < 10 or value > 300:
+            raise serializers.ValidationError("Duration must be between 10 and 300 seconds")
+        return value
+
+
+class DetectedDeviceSerializer(serializers.ModelSerializer):
+    """Serializer for detected devices"""
+    device_type_display = serializers.CharField(source='get_device_type_display', read_only=True)
+    connection_type_display = serializers.CharField(source='get_connection_type_display', read_only=True)
+    time_since_first_seen = serializers.SerializerMethodField()
+    signal_quality = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = DetectedDevice
+        fields = [
+            'id', 'device_name', 'device_type', 'device_type_display',
+            'mac_address', 'bluetooth_address', 'signal_strength',
+            'connection_type', 'connection_type_display', 'manufacturer',
+            'ios_version', 'device_model', 'is_paired', 'is_ios_device',
+            'additional_info', 'first_seen', 'last_seen', 'time_since_first_seen',
+            'signal_quality'
+        ]
+        read_only_fields = [
+            'id', 'first_seen', 'last_seen', 'time_since_first_seen', 'signal_quality'
+        ]
+    
+    def get_time_since_first_seen(self, obj):
+        """Get time elapsed since first detection"""
+        if obj.first_seen:
+            elapsed = timezone.now() - obj.first_seen
+            return int(elapsed.total_seconds())
+        return 0
+    
+    def get_signal_quality(self, obj):
+        """Calculate signal quality based on strength"""
+        if obj.signal_strength is None:
+            return "Unknown"
+        
+        # Convert dBm to quality percentage (rough estimation)
+        if obj.signal_strength >= -30:
+            return "Excellent"
+        elif obj.signal_strength >= -50:
+            return "Good"
+        elif obj.signal_strength >= -70:
+            return "Fair"
+        else:
+            return "Poor"
+
+
+class iOSDeviceProfileSerializer(serializers.ModelSerializer):
+    """Serializer for iOS device profiles"""
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    detected_device_info = DetectedDeviceSerializer(source='detected_device', read_only=True)
+    sync_status = serializers.SerializerMethodField()
+    health_data_summary = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = iOSDeviceProfile
+        fields = [
+            'id', 'device_name', 'device_identifier', 'device_model',
+            'ios_version', 'health_app_version', 'status', 'status_display',
+            'last_sync', 'sync_frequency', 'available_health_data',
+            'permissions_granted', 'sync_settings', 'is_primary_device',
+            'detected_device_info', 'sync_status', 'health_data_summary',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'device_identifier', 'detected_device_info', 'sync_status',
+            'health_data_summary', 'created_at', 'updated_at'
+        ]
+    
+    def get_sync_status(self, obj):
+        """Get sync status information"""
+        if not obj.last_sync:
+            return "Never synced"
+        
+        time_since_sync = timezone.now() - obj.last_sync
+        hours_since = time_since_sync.total_seconds() / 3600
+        
+        if hours_since < 1:
+            return "Recently synced"
+        elif hours_since < 24:
+            return f"Synced {int(hours_since)} hours ago"
+        else:
+            days_since = int(hours_since / 24)
+            return f"Synced {days_since} days ago"
+    
+    def get_health_data_summary(self, obj):
+        """Get summary of available health data"""
+        available_data = obj.available_health_data or []
+        granted_permissions = obj.permissions_granted or {}
+        
+        return {
+            'total_available': len(available_data),
+            'permissions_granted': len([k for k, v in granted_permissions.items() if v]),
+            'data_types': available_data,
+            'sync_enabled': len([k for k, v in granted_permissions.items() if v])
+        }
+
+
+class iOSDeviceProfileCreateSerializer(serializers.Serializer):
+    """Serializer for creating iOS device profiles"""
+    detected_device_id = serializers.UUIDField(
+        help_text="ID of the detected device to create profile for"
+    )
+    device_name = serializers.CharField(
+        max_length=100,
+        required=False,
+        help_text="Custom name for the device"
+    )
+    sync_frequency = serializers.IntegerField(
+        default=60,
+        min_value=5,
+        max_value=1440,
+        help_text="Sync frequency in minutes (5-1440)"
+    )
+    health_data_permissions = serializers.DictField(
+        required=False,
+        help_text="Health data permissions to grant",
+        child=serializers.BooleanField()
+    )
+    is_primary_device = serializers.BooleanField(
+        default=False,
+        help_text="Set as primary health device"
+    )
+    
+    def validate_detected_device_id(self, value):
+        """Validate that the detected device exists and is an iOS device"""
+        try:
+            detected_device = DetectedDevice.objects.get(id=value)
+            if not detected_device.is_ios_device:
+                raise serializers.ValidationError("Device is not confirmed to be an iOS device")
+            return value
+        except DetectedDevice.DoesNotExist:
+            raise serializers.ValidationError("Detected device not found")
+
+
+class DeviceScanResultsSerializer(serializers.Serializer):
+    """Serializer for device scan results"""
+    session_info = DeviceScanSessionSerializer()
+    detected_devices = DetectedDeviceSerializer(many=True)
+    ios_devices = DetectedDeviceSerializer(many=True)
+    summary = serializers.SerializerMethodField()
+    
+    def get_summary(self, obj):
+        """Get scan summary statistics"""
+        detected_devices = obj.get('detected_devices', [])
+        ios_devices = obj.get('ios_devices', [])
+        
+        return {
+            'total_devices': len(detected_devices),
+            'ios_devices': len(ios_devices),
+            'bluetooth_devices': len([d for d in detected_devices if d.connection_type in ['BLUETOOTH', 'BOTH']]),
+            'wifi_devices': len([d for d in detected_devices if d.connection_type in ['WIFI', 'BOTH']]),
+            'paired_devices': len([d for d in detected_devices if d.is_paired]),
+            'device_types': {
+                device_type: len([d for d in detected_devices if d.device_type == device_type])
+                for device_type in set(d.device_type for d in detected_devices)
+            }
+        }

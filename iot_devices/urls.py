@@ -25,4 +25,24 @@ urlpatterns = [
     
     # Statistics
     path('stats/', views.device_stats, name='device-stats'),
+    
+    # === iOS Device Detection Endpoints ===
+    
+    # Device Scanning
+    path('scan/start/', views.start_device_scan, name='start-device-scan'),
+    path('scan/<uuid:scan_id>/status/', views.get_scan_status, name='get-scan-status'),
+    path('scan/<uuid:scan_id>/results/', views.get_scan_results, name='get-scan-results'),
+    path('scan/sessions/', views.DeviceScanSessionListView.as_view(), name='device-scan-sessions'),
+    
+    # Detected Devices
+    path('detected/', views.DetectedDeviceListView.as_view(), name='detected-devices-list'),
+    path('detected/<uuid:pk>/', views.DetectedDeviceDetailView.as_view(), name='detected-device-detail'),
+    
+    # iOS Device Profiles
+    path('ios-profiles/', views.iOSDeviceProfileListView.as_view(), name='ios-device-profiles'),
+    path('ios-profiles/create/', views.create_ios_device_profile, name='create-ios-device-profile'),
+    path('ios-profiles/<uuid:pk>/', views.iOSDeviceProfileDetailView.as_view(), name='ios-device-profile-detail'),
+    
+    # Detection Statistics
+    path('detection-stats/', views.device_detection_stats, name='device-detection-stats'),
 ]

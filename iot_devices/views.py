@@ -9,13 +9,20 @@ from django.db.models.functions import TruncDate
 from datetime import datetime, timedelta
 import logging
 import secrets
+import asyncio
 
-from .models import IoTDevice, DeviceDataBatch, DeviceAlert
+from .models import (
+    IoTDevice, DeviceDataBatch, DeviceAlert,
+    DeviceScanSession, DetectedDevice, iOSDeviceProfile
+)
 from .serializers import (
     IoTDeviceSerializer, IoTDeviceListSerializer, DeviceDataBatchSerializer,
     DeviceAlertSerializer, DeviceStatsSerializer, DeviceConfigurationSerializer,
-    DeviceRegistrationSerializer, DeviceVerificationSerializer, DeviceHealthCheckSerializer
+    DeviceRegistrationSerializer, DeviceVerificationSerializer, DeviceHealthCheckSerializer,
+    DeviceScanSessionSerializer, DeviceScanCreateSerializer, DetectedDeviceSerializer,
+    iOSDeviceProfileSerializer, iOSDeviceProfileCreateSerializer, DeviceScanResultsSerializer
 )
+from .device_detection_service import device_detection_service
 
 logger = logging.getLogger(__name__)
 
@@ -462,5 +469,419 @@ def sync_device_data(request, device_id):
         logger.error(f"Error syncing device {device_id} for user {request.user.email}: {str(e)}")
         return Response(
             {'error': 'Failed to sync device'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# Device Detection Views
+class DeviceScanSessionListView(generics.ListAPIView):
+    """List user's device scan sessions"""
+    serializer_class = DeviceScanSessionSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = IoTDevicePagination
+    ordering = ['-initiated_at']
+    
+    def get_queryset(self):
+        return DeviceScanSession.objects.filter(user=self.request.user)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def start_device_scan(request):
+    """
+    Start a new device scan session for iOS device detection
+    
+    POST /api/v1/iot-devices/scan/start/
+    """
+    try:
+        serializer = DeviceScanCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {'error': 'Invalid scan parameters', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        scan_type = serializer.validated_data['scan_type']
+        duration = serializer.validated_data['duration']
+        
+        # Check for existing active scans
+        active_scan = DeviceScanSession.objects.filter(
+            user=request.user,
+            status__in=['INITIATED', 'SCANNING']
+        ).first()
+        
+        if active_scan:
+            return Response(
+                {
+                    'error': 'Active scan already exists',
+                    'active_scan_id': str(active_scan.id),
+                    'message': 'Please wait for the current scan to complete or cancel it first'
+                },
+                status=status.HTTP_409_CONFLICT
+            )
+        
+        # Start the scan session
+        scan_session = asyncio.run(
+            device_detection_service.start_device_scan(
+                user=request.user,
+                scan_type=scan_type,
+                duration=duration
+            )
+        )
+        
+        response_serializer = DeviceScanSessionSerializer(scan_session)
+        
+        logger.info(f"Started device scan {scan_session.id} for user {request.user.email}")
+        
+        return Response({
+            'message': 'Device scan started successfully',
+            'scan_session': response_serializer.data,
+            'status_check_url': f'/api/v1/iot-devices/scan/{scan_session.id}/status/',
+            'estimated_completion': (timezone.now() + timedelta(seconds=duration)).isoformat()
+        }, status=status.HTTP_201_CREATED)
+        
+    except ValueError as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        logger.error(f"Error starting device scan for user {request.user.email}: {str(e)}")
+        return Response(
+            {'error': 'Failed to start device scan'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_scan_status(request, scan_id):
+    """
+    Get the status of a device scan session
+    
+    GET /api/v1/iot-devices/scan/{scan_id}/status/
+    """
+    try:
+        scan_session = DeviceScanSession.objects.get(id=scan_id, user=request.user)
+        
+        # Get detailed status from the service
+        status_data = asyncio.run(
+            device_detection_service.get_scan_status(str(scan_session.id))
+        )
+        
+        return Response(status_data, status=status.HTTP_200_OK)
+        
+    except DeviceScanSession.DoesNotExist:
+        return Response(
+            {'error': 'Scan session not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error getting scan status {scan_id}: {str(e)}")
+        return Response(
+            {'error': 'Failed to get scan status'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_scan_results(request, scan_id):
+    """
+    Get detailed results of a completed device scan
+    
+    GET /api/v1/iot-devices/scan/{scan_id}/results/
+    """
+    try:
+        scan_session = DeviceScanSession.objects.get(id=scan_id, user=request.user)
+        
+        if scan_session.status != 'COMPLETED':
+            return Response(
+                {
+                    'error': 'Scan not completed',
+                    'current_status': scan_session.status,
+                    'message': 'Scan results are only available for completed scans'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get detected devices
+        detected_devices = scan_session.detected_devices.all()
+        ios_devices = detected_devices.filter(is_ios_device=True)
+        
+        # Serialize the results
+        session_serializer = DeviceScanSessionSerializer(scan_session)
+        devices_serializer = DetectedDeviceSerializer(detected_devices, many=True)
+        ios_serializer = DetectedDeviceSerializer(ios_devices, many=True)
+        
+        results_data = {
+            'session_info': session_serializer.data,
+            'detected_devices': devices_serializer.data,
+            'ios_devices': ios_serializer.data
+        }
+        
+        results_serializer = DeviceScanResultsSerializer(results_data)
+        
+        return Response(results_serializer.data, status=status.HTTP_200_OK)
+        
+    except DeviceScanSession.DoesNotExist:
+        return Response(
+            {'error': 'Scan session not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error getting scan results {scan_id}: {str(e)}")
+        return Response(
+            {'error': 'Failed to get scan results'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+class DetectedDeviceListView(generics.ListAPIView):
+    """List detected devices from user's scan sessions"""
+    serializer_class = DetectedDeviceSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = IoTDevicePagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['device_name', 'manufacturer', 'device_model']
+    ordering_fields = ['device_name', 'device_type', 'signal_strength', 'first_seen']
+    ordering = ['-last_seen']
+    
+    def get_queryset(self):
+        queryset = DetectedDevice.objects.filter(scan_session__user=self.request.user)
+        
+        # Filter by iOS devices only
+        ios_only = self.request.query_params.get('ios_only')
+        if ios_only and ios_only.lower() == 'true':
+            queryset = queryset.filter(is_ios_device=True)
+        
+        # Filter by device type
+        device_type = self.request.query_params.get('device_type')
+        if device_type:
+            queryset = queryset.filter(device_type=device_type)
+        
+        # Filter by connection type
+        connection_type = self.request.query_params.get('connection_type')
+        if connection_type:
+            queryset = queryset.filter(connection_type=connection_type)
+        
+        # Filter by scan session
+        scan_session_id = self.request.query_params.get('scan_session')
+        if scan_session_id:
+            queryset = queryset.filter(scan_session_id=scan_session_id)
+        
+        return queryset
+
+
+class DetectedDeviceDetailView(generics.RetrieveAPIView):
+    """Get details of a detected device"""
+    serializer_class = DetectedDeviceSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return DetectedDevice.objects.filter(scan_session__user=self.request.user)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_ios_device_profile(request):
+    """
+    Create an iOS device profile from a detected device
+    
+    POST /api/v1/iot-devices/ios-profiles/create/
+    """
+    try:
+        serializer = iOSDeviceProfileCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {'error': 'Invalid profile data', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        detected_device_id = serializer.validated_data['detected_device_id']
+        device_name = serializer.validated_data.get('device_name')
+        
+        # Check if profile already exists for this device
+        existing_profile = iOSDeviceProfile.objects.filter(
+            user=request.user,
+            detected_device_id=detected_device_id
+        ).first()
+        
+        if existing_profile:
+            return Response(
+                {
+                    'error': 'Profile already exists',
+                    'existing_profile_id': str(existing_profile.id),
+                    'message': 'An iOS device profile already exists for this detected device'
+                },
+                status=status.HTTP_409_CONFLICT
+            )
+        
+        # Create the iOS device profile
+        ios_profile = asyncio.run(
+            device_detection_service.create_ios_device_profile(
+                user=request.user,
+                detected_device_id=str(detected_device_id),
+                device_name=device_name
+            )
+        )
+        
+        # Update additional settings if provided
+        if 'sync_frequency' in serializer.validated_data:
+            ios_profile.sync_frequency = serializer.validated_data['sync_frequency']
+        
+        if 'health_data_permissions' in serializer.validated_data:
+            ios_profile.permissions_granted = serializer.validated_data['health_data_permissions']
+        
+        if 'is_primary_device' in serializer.validated_data:
+            # If setting as primary, remove primary flag from other devices
+            if serializer.validated_data['is_primary_device']:
+                iOSDeviceProfile.objects.filter(
+                    user=request.user,
+                    is_primary_device=True
+                ).update(is_primary_device=False)
+            ios_profile.is_primary_device = serializer.validated_data['is_primary_device']
+        
+        ios_profile.save()
+        
+        response_serializer = iOSDeviceProfileSerializer(ios_profile)
+        
+        logger.info(f"Created iOS device profile {ios_profile.id} for user {request.user.email}")
+        
+        return Response({
+            'message': 'iOS device profile created successfully',
+            'profile': response_serializer.data
+        }, status=status.HTTP_201_CREATED)
+        
+    except ValueError as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        logger.error(f"Error creating iOS device profile for user {request.user.email}: {str(e)}")
+        return Response(
+            {'error': 'Failed to create iOS device profile'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+class iOSDeviceProfileListView(generics.ListAPIView):
+    """List user's iOS device profiles"""
+    serializer_class = iOSDeviceProfileSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = IoTDevicePagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['device_name', 'device_model']
+    ordering_fields = ['device_name', 'status', 'last_sync', 'created_at']
+    ordering = ['-updated_at']
+    
+    def get_queryset(self):
+        queryset = iOSDeviceProfile.objects.filter(user=self.request.user)
+        
+        # Filter by status
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        # Filter by primary device
+        primary_only = self.request.query_params.get('primary_only')
+        if primary_only and primary_only.lower() == 'true':
+            queryset = queryset.filter(is_primary_device=True)
+        
+        return queryset
+
+
+class iOSDeviceProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Get, update, or delete an iOS device profile"""
+    serializer_class = iOSDeviceProfileSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return iOSDeviceProfile.objects.filter(user=self.request.user)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def device_detection_stats(request):
+    """
+    Get device detection statistics for the user
+    
+    GET /api/v1/iot-devices/detection-stats/
+    """
+    try:
+        user = request.user
+        
+        # Get scan session stats
+        total_scans = DeviceScanSession.objects.filter(user=user).count()
+        completed_scans = DeviceScanSession.objects.filter(user=user, status='COMPLETED').count()
+        failed_scans = DeviceScanSession.objects.filter(user=user, status='FAILED').count()
+        
+        # Get detected device stats
+        total_devices = DetectedDevice.objects.filter(scan_session__user=user).count()
+        ios_devices = DetectedDevice.objects.filter(
+            scan_session__user=user,
+            is_ios_device=True
+        ).count()
+        
+        # Get iOS profile stats
+        ios_profiles = iOSDeviceProfile.objects.filter(user=user).count()
+        active_profiles = iOSDeviceProfile.objects.filter(
+            user=user,
+            status__in=['PAIRED', 'CONNECTED', 'SYNCING']
+        ).count()
+        
+        # Get recent scan activity (last 30 days)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        recent_scans = DeviceScanSession.objects.filter(
+            user=user,
+            initiated_at__gte=thirty_days_ago
+        ).count()
+        
+        # Device type distribution
+        device_types = DetectedDevice.objects.filter(
+            scan_session__user=user,
+            is_ios_device=True
+        ).values('device_type').annotate(count=Count('device_type'))
+        
+        stats = {
+            'scan_statistics': {
+                'total_scans': total_scans,
+                'completed_scans': completed_scans,
+                'failed_scans': failed_scans,
+                'success_rate': round((completed_scans / total_scans * 100) if total_scans > 0 else 0, 2),
+                'recent_scans_30_days': recent_scans
+            },
+            'device_statistics': {
+                'total_devices_detected': total_devices,
+                'ios_devices_detected': ios_devices,
+                'ios_detection_rate': round((ios_devices / total_devices * 100) if total_devices > 0 else 0, 2),
+                'device_profiles_created': ios_profiles,
+                'active_profiles': active_profiles
+            },
+            'device_type_distribution': {
+                item['device_type']: item['count'] for item in device_types
+            },
+            'last_scan': None
+        }
+        
+        # Get last scan info
+        last_scan = DeviceScanSession.objects.filter(user=user).order_by('-initiated_at').first()
+        if last_scan:
+            stats['last_scan'] = {
+                'id': str(last_scan.id),
+                'scan_type': last_scan.scan_type,
+                'status': last_scan.status,
+                'devices_found': last_scan.devices_found,
+                'ios_devices_found': last_scan.ios_devices_found,
+                'initiated_at': last_scan.initiated_at.isoformat()
+            }
+        
+        return Response(stats, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error getting device detection stats for user {request.user.email}: {str(e)}")
+        return Response(
+            {'error': 'Failed to get device detection statistics'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

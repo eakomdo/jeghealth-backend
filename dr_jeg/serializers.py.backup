@@ -1,0 +1,95 @@
+from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from .models import Conversation, Message
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    """Serializer for AI conversation messages"""
+    
+    class Meta:
+        model = Message
+        fields = ['id', 'conversation', 'sender', 'content', 'timestamp']  # Use 'sender' not 'role'
+
+    def create(self, validated_data):
+        # Set sender to 'user' by default if not specified
+        if 'sender' not in validated_data:
+            validated_data['sender'] = 'user'
+        return super().create(validated_data)
+
+
+class ConversationListSerializer(serializers.ModelSerializer):
+    """Simplified serializer for listing conversations"""
+    message_count = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
+    last_activity = serializers.SerializerMethodField()
+    
+    @extend_schema_field(serializers.IntegerField)
+    def get_message_count(self, obj):
+        """Get count of messages in conversation"""
+        return obj.messages.count()
+    
+    @extend_schema_field(serializers.CharField)
+    def get_last_message(self, obj):
+        """Get the last message content (truncated)"""
+        last_message = obj.messages.order_by('-timestamp').first()
+        if last_message:
+            content = last_message.content
+            return content[:100] + "..." if len(content) > 100 else content
+        return None
+    
+    @extend_schema_field(serializers.DateTimeField)
+    def get_last_activity(self, obj):
+        """Get timestamp of last activity"""
+        last_message = obj.messages.order_by('-timestamp').first()
+        return last_message.timestamp if last_message else obj.created_at
+    
+    class Meta:
+        model = Conversation
+        fields = ['id', 'user', 'title', 'message_count', 'last_message', 'last_activity', 'created_at']
+
+
+class ConversationSerializer(serializers.ModelSerializer):
+    """Detailed serializer for conversation with messages"""
+    message_count = serializers.SerializerMethodField()
+    messages = MessageSerializer(many=True, read_only=True)
+    
+    @extend_schema_field(serializers.IntegerField)
+    def get_message_count(self, obj):
+        """Get count of messages in conversation"""
+        return obj.messages.count()
+    
+    class Meta:
+        model = Conversation
+        fields = ['id', 'user', 'title', 'message_count', 'messages', 'created_at', 'updated_at']
+
+
+class ConversationCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating conversations"""
+    
+    class Meta:
+        model = Conversation
+        fields = ['title']
+        
+    def create(self, validated_data):
+        # Set user to current user
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            validated_data['user'] = request.user
+        return super().create(validated_data)
+
+
+class MessageCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating messages"""
+    
+    class Meta:
+        model = Message
+        fields = ['conversation', 'content', 'sender']
+        extra_kwargs = {
+            'content': {'required': True},
+        }
+
+    def create(self, validated_data):
+        # Set sender to 'user' by default if not specified
+        if 'sender' not in validated_data:
+            validated_data['sender'] = 'user'
+        return super().create(validated_data)
